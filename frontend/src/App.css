@@ -1,0 +1,141 @@
+/* Glassmorphism styles */
+@import "tailwindcss";
+
+/* Base Styles */
+.chat-container {
+  min-height: 100vh;
+  padding: 2rem;
+  font-family: 'Inter', -apple-system, sans-serif;
+  color: #2d3748;
+}
+
+/* Welcome Screen - Glassmorphism Effect */
+.welcome-screen {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 3rem 2rem;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 8px 32px rgba(31, 38, 135, 0.1);
+  text-align: center;
+  
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2rem;
+}
+
+/* Typography */
+h1 {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  color: #4a5568;
+  background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #4a5568;
+  margin-bottom: 0.5rem;
+}
+
+.value-prop {
+  font-size: 1.2rem;
+  line-height: 1.6;
+  color: #4a5568;
+  max-width: 600px;
+}
+
+/* Crisis Resources */
+.crisis-resources {
+  background: rgba(236, 253, 245, 0.6);
+  padding: 1.5rem;
+  border-radius: 16px;
+  width: 100%;
+  text-align: left;
+}
+
+.crisis-resources ul {
+  list-style-type: none;
+  padding: 0;
+  margin: 0;
+}
+
+.crisis-resources li {
+  margin: 0.75rem 0;
+  color: #2d3748;
+}
+
+.crisis-resources a {
+  color: #4299e1;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+/* Privacy Section */
+.privacy-assurance {
+  background: rgba(254, 243, 199, 0.4);
+  padding: 1.5rem;
+  border-radius: 16px;
+  width: 100%;
+}
+
+/* CTA Button */
+.cta-button {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  padding: 1rem 2.5rem;
+  font-size: 1.2rem;
+  border-radius: 50px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+  font-weight: 600;
+}
+
+.cta-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+.cta-button:active {
+  transform: translateY(0);
+}
+
+/* Message Display Area */
+.message-display {
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 16px;
+  padding: 2rem;
+  min-height: 70vh;
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+  box-shadow: 0 8px 32px rgba(31, 38, 135, 0.1);
+}
+
+.system-message {
+  color: #4a5568;
+  font-style: italic;
+  text-align: center;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .welcome-screen {
+    padding: 2rem 1rem;
+  }
+  
+  h1 {
+    font-size: 2rem;
+  }
+}
