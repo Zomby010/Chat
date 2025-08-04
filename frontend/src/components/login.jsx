@@ -1,27 +1,105 @@
-import React, { useState } from 'react';
-import { Heart, Mail, Lock, User, Eye, EyeOff, ArrowRight, AlertCircle, CheckCircle, Facebook, Github, Shield } from 'lucide-react';
-import'../styles/login.css';
+import React, { useState, useCallback, memo } from 'react';
+import { Heart, Mail, Lock, Eye, EyeOff, ArrowRight, AlertCircle, Facebook, Shield } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { 
+  signInWithEmailAndPassword, 
+  signInWithPopup, 
+  GoogleAuthProvider, 
+  FacebookAuthProvider, 
+  sendPasswordResetEmail 
+} from 'firebase/auth';
+import { auth } from './firebase/config';
+import { toast } from 'react-toastify';
+import { useStore } from '../store/useStore';
+import '../styles/login.css';
 
+// Extract InputField component outside to prevent re-creation on every render
+const InputField = memo(({ 
+  icon: Icon, 
+  label, 
+  type = 'text', 
+  name, 
+  placeholder, 
+  value, 
+  onChange, 
+  error, 
+  showToggle = false, 
+  showPassword: showPass, 
+  onTogglePassword,
+  isLoading 
+}) => (
+  <div className="form-group">
+    <label className="form-label">
+      <Icon size={16} className="form-label-icon" />
+      {label}
+    </label>
+    <div className="input-wrapper">
+      <input
+        className={`form-input ${error ? 'form-input-error' : ''}`}
+        type={showToggle ? (showPass ? "text" : "password") : type}
+        name={name}
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        required
+        autoComplete={name === 'email' ? 'email' : name === 'password' ? 'current-password' : 'off'}
+        disabled={isLoading}
+      />
+      {showToggle && (
+        <button
+          type="button"
+          className="password-toggle-button"
+          onClick={onTogglePassword}
+          tabIndex={-1}
+          disabled={isLoading}
+        >
+          {showPass ? <EyeOff size={20} /> : <Eye size={20} />}
+        </button>
+      )}
+    </div>
+    {error && (
+      <div className="error-message">
+        <AlertCircle size={14} className="error-icon" />
+        {error}
+      </div>
+    )}
+  </div>
+));
 
-const LoginPage = () => {
-  const [isLogin, setIsLogin] = useState(true);
+InputField.displayName = 'InputField';
+
+// Extract SocialButton component outside to prevent re-creation on every render
+const SocialButton = memo(({ children, onClick, disabled = false, isLoading }) => (
+  <button 
+    className="social-button" 
+    onClick={onClick} 
+    disabled={disabled || isLoading}
+    type="button"
+  >
+    {children}
+  </button>
+));
+
+SocialButton.displayName = 'SocialButton';
+
+const Login = ({ onSwitchToSignup }) => {
+  const navigate = useNavigate();
+  const { setUser } = useStore();
+  
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const [formData, setFormData] = useState({
-    name: '',
     email: '',
-    password: '',
-    confirmPassword: ''
+    password: ''
   });
 
-  const validateForm = () => {
+  // Initialize providers
+  const googleProvider = new GoogleAuthProvider();
+  const facebookProvider = new FacebookAuthProvider();
+
+  const validateForm = useCallback(() => {
     const newErrors = {};
-    
-    if (!isLogin && !formData.name.trim()) {
-      newErrors.name = 'Full name is required';
-    }
     
     if (!formData.email.trim()) {
       newErrors.email = 'Email is required';
@@ -35,16 +113,10 @@ const LoginPage = () => {
       newErrors.password = 'Password must be at least 6 characters';
     }
     
-    if (!isLogin && !formData.confirmPassword) {
-      newErrors.confirmPassword = 'Please confirm your password';
-    } else if (!isLogin && formData.password !== formData.confirmPassword) {
-      newErrors.confirmPassword = 'Passwords do not match';
-    }
-    
     return newErrors;
-  };
+  }, [formData.email, formData.password]);
 
-  const handleInputChange = (e) => {
+  const handleInputChange = useCallback((e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
@@ -58,9 +130,26 @@ const LoginPage = () => {
         [name]: ''
       }));
     }
-  };
+  }, [errors]);
 
-  const handleSubmit = async (e) => {
+  const handleLoginSuccess = useCallback((user) => {
+    // Update global user state
+    setUser({
+      uid: user.uid,
+      email: user.email,
+      displayName: user.displayName || '',
+      photoURL: user.photoURL || '',
+      emailVerified: user.emailVerified
+    });
+    
+    // Show success toast
+    toast.success('Login successful');
+    
+    // Navigate to chat route
+    navigate('/chat');
+  }, [setUser, navigate]);
+
+  const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
     
     const newErrors = validateForm();
@@ -72,85 +161,159 @@ const LoginPage = () => {
     setIsLoading(true);
     setErrors({});
     
-    // Simulate API call
     try {
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      const userCredential = await signInWithEmailAndPassword(
+        auth, 
+        formData.email.trim(), 
+        formData.password
+      );
+      const user = userCredential.user;
       
-      if (isLogin) {
-        console.log('Login successful:', { email: formData.email });
-      } else {
-        console.log('Registration successful:', formData);
-      }
+      handleLoginSuccess(user);
+      
     } catch (error) {
-      setErrors({ submit: 'Something went wrong. Please try again.' });
+      console.error('Login error:', error);
+      
+      // Handle Firebase auth errors
+      let errorMessage = 'Invalid email or password';
+      
+      switch (error.code) {
+        case 'auth/user-not-found':
+          errorMessage = 'No account found with this email address';
+          break;
+        case 'auth/wrong-password':
+          errorMessage = 'Invalid email or password';
+          break;
+        case 'auth/invalid-email':
+          errorMessage = 'Invalid email address';
+          break;
+        case 'auth/user-disabled':
+          errorMessage = 'This account has been disabled';
+          break;
+        case 'auth/too-many-requests':
+          errorMessage = 'Too many failed attempts. Please try again later';
+          break;
+        case 'auth/invalid-credential':
+          errorMessage = 'Invalid email or password';
+          break;
+        case 'auth/network-request-failed':
+          errorMessage = 'Network error. Please check your connection';
+          break;
+        default:
+          errorMessage = 'Invalid email or password';
+      }
+      
+      toast.error(errorMessage);
+      setErrors({ submit: errorMessage });
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [formData, validateForm, handleLoginSuccess]);
 
-  const toggleMode = () => {
-    setIsLogin(!isLogin);
-    setFormData({
-      name: '',
-      email: '',
-      password: '',
-      confirmPassword: ''
-    });
-    setErrors({});
-  };
+  const handleGoogleLogin = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setErrors({});
+      
+      const result = await signInWithPopup(auth, googleProvider);
+      const user = result.user;
+      
+      handleLoginSuccess(user);
+      
+    } catch (error) {
+      console.error('Google login error:', error);
+      
+      let errorMessage = 'Google login failed. Please try again.';
+      
+      if (error.code === 'auth/popup-closed-by-user') {
+        errorMessage = 'Login cancelled';
+      } else if (error.code === 'auth/popup-blocked') {
+        errorMessage = 'Popup blocked. Please allow popups and try again';
+      } else if (error.code === 'auth/network-request-failed') {
+        errorMessage = 'Network error. Please check your connection';
+      }
+      
+      toast.error(errorMessage);
+      setErrors({ submit: errorMessage });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [handleLoginSuccess]);
 
-  const InputField = ({ 
-    icon: Icon, 
-    label, 
-    type = 'text', 
-    name, 
-    placeholder, 
-    value, 
-    onChange, 
-    error, 
-    showToggle = false, 
-    showPassword: showPass, 
-    onTogglePassword 
-  }) => (
-    <div className="form-group">
-      <label className="form-label">
-        <Icon size={16} className="form-label-icon" />
-        {label}
-      </label>
-      <div className="input-wrapper">
-        <input
-          className={`form-input ${error ? 'form-input-error' : ''}`}
-          type={showToggle ? (showPass ? "text" : "password") : type}
-          name={name}
-          value={value}
-          onChange={onChange}
-          placeholder={placeholder}
-          required
-        />
-        {showToggle && (
-          <button
-            type="button"
-            className="password-toggle-button"
-            onClick={onTogglePassword}
-          >
-            {showPass ? <EyeOff size={20} /> : <Eye size={20} />}
-          </button>
-        )}
-      </div>
-      {error && (
-        <div className="error-message">
-          <AlertCircle size={14} className="error-icon" />
-          {error}
-        </div>
-      )}
-    </div>
-  );
+  const handleFacebookLogin = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setErrors({});
+      
+      const result = await signInWithPopup(auth, facebookProvider);
+      const user = result.user;
+      
+      handleLoginSuccess(user);
+      
+    } catch (error) {
+      console.error('Facebook login error:', error);
+      
+      let errorMessage = 'Facebook login failed. Please try again.';
+      
+      if (error.code === 'auth/popup-closed-by-user') {
+        errorMessage = 'Login cancelled';
+      } else if (error.code === 'auth/popup-blocked') {
+        errorMessage = 'Popup blocked. Please allow popups and try again';
+      } else if (error.code === 'auth/account-exists-with-different-credential') {
+        errorMessage = 'An account already exists with this email using a different sign-in method';
+      } else if (error.code === 'auth/network-request-failed') {
+        errorMessage = 'Network error. Please check your connection';
+      }
+      
+      toast.error(errorMessage);
+      setErrors({ submit: errorMessage });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [handleLoginSuccess]);
 
-  const SocialButton = ({ children, onClick }) => (
-    <button className="social-button" onClick={onClick}>
-      {children}
-    </button>
-  );
+  const handleForgotPassword = useCallback(async () => {
+    if (!formData.email) {
+      setErrors({ email: 'Please enter your email address first' });
+      toast.error('Please enter your email address first');
+      return;
+    }
+
+    if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      setErrors({ email: 'Please enter a valid email address' });
+      toast.error('Please enter a valid email address');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      await sendPasswordResetEmail(auth, formData.email.trim());
+      
+      toast.success('Password reset email sent! Check your inbox.');
+      setErrors({});
+    } catch (error) {
+      console.error('Password reset error:', error);
+      
+      let errorMessage = 'Failed to send password reset email. Please try again.';
+      
+      if (error.code === 'auth/user-not-found') {
+        errorMessage = 'No account found with this email address';
+      } else if (error.code === 'auth/invalid-email') {
+        errorMessage = 'Invalid email address';
+      } else if (error.code === 'auth/network-request-failed') {
+        errorMessage = 'Network error. Please check your connection';
+      }
+      
+      toast.error(errorMessage);
+      setErrors({ submit: errorMessage });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [formData.email]);
+
+  const togglePasswordVisibility = useCallback(() => {
+    setShowPassword(prev => !prev);
+  }, []);
 
   return (
     <div className="login-page">
@@ -162,27 +325,11 @@ const LoginPage = () => {
                 <Heart size={32} className="brand-icon" />
                 <h1 className="brand-title">MindMate</h1>
               </div>
-              <p className="login-subtitle">
-                {isLogin ? 'Welcome back to your safe space' : 'Join our supportive community'}
-              </p>
-              <div className="login-description">
-                {isLogin ? 'Continue your mental health journey' : 'Start your path to wellness'}
-              </div>
+              <p className="login-subtitle">Welcome back to your safe space</p>
+              <div className="login-description">Continue your mental health journey</div>
             </div>
 
-            <div className="login-form" onSubmit={handleSubmit}>
-              {!isLogin && (
-                <InputField
-                  icon={User}
-                  label="Full Name"
-                  name="name"
-                  placeholder="Enter your full name"
-                  value={formData.name}
-                  onChange={handleInputChange}
-                  error={errors.name}
-                />
-              )}
-
+            <form className="login-form" onSubmit={handleSubmit} noValidate>
               <InputField
                 icon={Mail}
                 label="Email Address"
@@ -192,6 +339,7 @@ const LoginPage = () => {
                 value={formData.email}
                 onChange={handleInputChange}
                 error={errors.email}
+                isLoading={isLoading}
               />
 
               <InputField
@@ -204,31 +352,20 @@ const LoginPage = () => {
                 error={errors.password}
                 showToggle={true}
                 showPassword={showPassword}
-                onTogglePassword={() => setShowPassword(!showPassword)}
+                onTogglePassword={togglePasswordVisibility}
+                isLoading={isLoading}
               />
 
-              {!isLogin && (
-                <InputField
-                  icon={Lock}
-                  label="Confirm Password"
-                  name="confirmPassword"
-                  placeholder="Confirm your password"
-                  value={formData.confirmPassword}
-                  onChange={handleInputChange}
-                  error={errors.confirmPassword}
-                  showToggle={true}
-                  showPassword={showConfirmPassword}
-                  onTogglePassword={() => setShowConfirmPassword(!showConfirmPassword)}
-                />
-              )}
-
-              {isLogin && (
-                <div className="forgot-password-wrapper">
-                  <button type="button" className="forgot-password-link">
-                    Forgot Password?
-                  </button>
-                </div>
-              )}
+              <div className="forgot-password-wrapper">
+                <button 
+                  type="button" 
+                  className="forgot-password-link"
+                  onClick={handleForgotPassword}
+                  disabled={isLoading}
+                >
+                  Forgot Password?
+                </button>
+              </div>
 
               {errors.submit && (
                 <div className="submit-error-message">
@@ -237,41 +374,45 @@ const LoginPage = () => {
                 </div>
               )}
 
-              <div
+              <button
+                type="submit"
                 className={`submit-button ${isLoading ? 'submit-button-loading' : ''}`}
-                onClick={handleSubmit}
+                disabled={isLoading}
               >
                 {isLoading ? (
                   <>
                     <div className="loading-spinner"></div>
-                    Processing...
+                    Signing In...
                   </>
                 ) : (
                   <>
-                    {isLogin ? 'Sign In' : 'Create Account'}
+                    Sign In
                     <ArrowRight size={20} className="submit-button-arrow" />
                   </>
                 )}
-              </div>
-            </div>
+              </button>
+            </form>
 
             <div className="auth-toggle-section">
               <p className="auth-toggle-text">
-                {isLogin ? "Don't have an account?" : "Already have an account?"}
-                <button
-                  type="button"
-                  className="auth-toggle-button"
-                  onClick={toggleMode}
-                >
-                  {isLogin ? 'Sign Up' : 'Sign In'}
-                </button>
+                Don't have an account?
+                <Link to="/signup" style={{ textDecoration: 'none' }}>
+                  <button
+                    type="button"
+                    className="auth-toggle-button"
+                    onClick={onSwitchToSignup}
+                    disabled={isLoading}
+                  >
+                    Sign Up
+                  </button>
+                </Link>
               </p>
             </div>
 
             <div className="social-login-section">
               <p className="social-login-divider">Or continue with</p>
               <div className="social-buttons-container">
-                <SocialButton onClick={() => console.log('Google login')}>
+                <SocialButton onClick={handleGoogleLogin} disabled={isLoading} isLoading={isLoading}>
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" className="google-icon">
                     <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
                     <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
@@ -280,7 +421,7 @@ const LoginPage = () => {
                   </svg>
                   Google
                 </SocialButton>
-                <SocialButton onClick={() => console.log('Facebook login')}>
+                <SocialButton onClick={handleFacebookLogin} disabled={isLoading} isLoading={isLoading}>
                   <Facebook size={20} className="facebook-icon" />
                   Facebook
                 </SocialButton>
@@ -290,7 +431,7 @@ const LoginPage = () => {
             <div className="terms-and-privacy">
               <div className="terms-text">
                 <p className="terms-agreement">
-                  By {isLogin ? 'signing in' : 'creating an account'}, you agree to our{' '}
+                  By signing in, you agree to our{' '}
                   <a href="#" className="terms-link">Terms of Service</a>{' '}
                   and{' '}
                   <a href="#" className="privacy-link">Privacy Policy</a>
@@ -318,4 +459,4 @@ const LoginPage = () => {
   );
 };
 
-export default LoginPage;
+export default Login;

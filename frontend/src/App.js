@@ -1,9 +1,10 @@
 // src/App.js
 import { useState, useEffect } from 'react';
 import { useStore } from './store';
-import { MentalHealthChatbot, WelcomeScreen, Loginpage} from './components';
+import { MentalHealthChatbot, WelcomeScreen, Loginpage, Signup} from './components';
 import Navbar from './components/navbar'; // Single correct import
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import {ToastContainer} from 'react-toastify';
 
 export default function App() {
   const { user, darkMode, setDarkMode } = useStore();
@@ -62,12 +63,14 @@ export default function App() {
         {/* Main Content */}
         <main className="flex h-[calc(100vh-80px)]">
           <div className="flex-1">
-            <Routes>
-              <Route path="/" element={user ? <MentalHealthChatbot /> : <WelcomeScreen />} />
-              <Route path="/chat" element={<MentalHealthChatbot />} />
-              <Route path="/sign-in" element={<Loginpage />} />
-              {/* Add more routes as needed */}
-            </Routes>
+          <Routes>
+  <Route path="/" element={<Navigate to="/signup" />} />
+  <Route path="/welcome" element={<WelcomeScreen />} />
+<Route path="/chat" element={<MentalHealthChatbot />} />
+  <Route path="/login" element={<Loginpage />} />
+  <Route path="/signup" element={<Signup />} />
+</Routes>
+            <ToastContainer/>
           </div>
           
           {/* Resource Panel - Simple placeholder since ResourcePanel doesn't exist */}

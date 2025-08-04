@@ -50,7 +50,7 @@ const Navbar = ({ toggleResources }) => {
 
             {/* Desktop Navigation Links */}
             <div className="nav-links-desktop">
-              <Link to="/" className="nav-link">
+              <Link to="/welcome" className="nav-link">
                 <Home size={16} />
                 <span>Home</span>
               </Link>
@@ -85,17 +85,17 @@ const Navbar = ({ toggleResources }) => {
                 
                 {isProfileDropdownOpen && (
                   <div className="profile-dropdown">
-                    <Link to="/sign-in" className="dropdown-item" onClick={closeProfileDropdown}>
+                    <Link to="/login" className="dropdown-item" onClick={closeProfileDropdown}>
                       <LogIn size={16} />
                       <span>Sign In</span>
                     </Link>
-                    <Link to="/sign-in" className="dropdown-item" onClick={closeProfileDropdown}>
+                    <Link to="/signup" className="dropdown-item" onClick={closeProfileDropdown}>
                       <UserPlus size={16} />
                       <span>Sign Up</span>
                     </Link>
                     <div className="dropdown-divider"></div>
                     <div className="dropdown-divider"></div>
-                    <Link to="/sign-in" className="dropdown-item logout" onClick={closeProfileDropdown}>
+                    <Link to="/login" className="dropdown-item logout" onClick={closeProfileDropdown}>
                       <LogOut size={16} />
                       <span>Log Out</span>
                     </Link>
