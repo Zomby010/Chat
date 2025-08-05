@@ -146,7 +146,7 @@ const Login = ({ onSwitchToSignup }) => {
     toast.success('Login successful');
     
     // Navigate to chat route
-    navigate('/chat');
+    navigate('/welcome');
   }, [setUser, navigate]);
 
   const handleSubmit = useCallback(async (e) => {

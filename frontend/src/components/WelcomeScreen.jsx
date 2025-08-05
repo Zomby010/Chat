@@ -1,47 +1,190 @@
-import React, { useState } from 'react';
-import { MessageCircle, Phone, Shield, Heart } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { 
+  MessageCircle, 
+  Phone, 
+  Shield, 
+  Heart, 
+  ChevronDown, 
+  X,
+  User,
+  UserCheck,
+  ExternalLink
+} from 'lucide-react';
+import './WelcomeScreen.css';
 
-const ChatWindow = () => {
-  const [showWelcome, setShowWelcome] = useState(true);
+const WelcomeScreen = () => {
+  const navigate = useNavigate();
+  const [showCrisisDropdown, setShowCrisisDropdown] = useState(false);
+  const [showMoodModal, setShowMoodModal] = useState(false);
+  const [selectedMood, setSelectedMood] = useState(null);
+  const [isBreathing, setIsBreathing] = useState(false);
+  const [breathingPhase, setBreathingPhase] = useState('ready');
+  const [breathingCount, setBreathingCount] = useState(0);
+  const [encouragementMessage, setEncouragementMessage] = useState('');
+
+  // Encouragement messages that change on each render
+  const encouragementMessages = [
+    "You are not alone in this journey",
+    "Today is a new chance to heal",
+    "Your feelings are valid and important",
+    "Small steps forward are still progress",
+    "You have the strength within you",
+    "It's okay to not be okay today",
+    "You matter more than you know",
+    "Healing is not linear, and that's okay",
+    "You are worthy of love and support",
+    "Tomorrow can be different from today"
+  ];
+
+  // Set random encouragement message on component mount
+  useEffect(() => {
+    const randomMessage = encouragementMessages[Math.floor(Math.random() * encouragementMessages.length)];
+    setEncouragementMessage(randomMessage);
+  }, []);
+
+  // Mood options with emojis
+  const moodOptions = [
+    { emoji: '😢', label: 'Very Sad', value: 1 },
+    { emoji: '😔', label: 'Sad', value: 2 },
+    { emoji: '😐', label: 'Not Great', value: 3 },
+    { emoji: '😕', label: 'Okay', value: 4 },
+    { emoji: '🙂', label: 'Fine', value: 5 },
+    { emoji: '😊', label: 'Good', value: 6 },
+    { emoji: '😄', label: 'Great', value: 7 },
+    { emoji: '😁', label: 'Very Good', value: 8 },
+    { emoji: '🤗', label: 'Excellent', value: 9 },
+    { emoji: '😍', label: 'Amazing', value: 10 }
+  ];
 
   const handleStartChat = () => {
-    setShowWelcome(false);
+    navigate('/chat');
   };
 
-  const handleBackToWelcome = () => {
-    setShowWelcome(true);
+  const handleMoodSelect = (mood) => {
+    setSelectedMood(mood);
+    // You can save this mood data to your state management or API
+    console.log('Selected mood:', mood);
+    setShowMoodModal(false);
+  };
+
+  const handleBreathingExercise = () => {
+    if (isBreathing) return;
+    
+    setIsBreathing(true);
+    setBreathingPhase('inhale');
+    setBreathingCount(0);
+    
+    const breathingCycle = () => {
+      let count = 0;
+      const totalCycles = 5; // 30 seconds / 6 seconds per cycle = 5 cycles
+      
+      const cycle = () => {
+        if (count >= totalCycles) {
+          setIsBreathing(false);
+          setBreathingPhase('ready');
+          setBreathingCount(0);
+          return;
+        }
+        
+        // Inhale phase (4 seconds)
+        setBreathingPhase('inhale');
+        setTimeout(() => {
+          // Hold phase (2 seconds)
+          setBreathingPhase('hold');
+          setTimeout(() => {
+            // Exhale phase (4 seconds)
+            setBreathingPhase('exhale');
+            setTimeout(() => {
+              count++;
+              setBreathingCount(count);
+              cycle();
+            }, 4000);
+          }, 2000);
+        }, 4000);
+      };
+      
+      cycle();
+    };
+    
+    breathingCycle();
+  };
+
+  const getBreathingText = () => {
+    switch (breathingPhase) {
+      case 'inhale': return 'Breathe In...';
+      case 'hold': return 'Hold...';
+      case 'exhale': return 'Breathe Out...';
+      default: return 'Tap to Breathe';
+    }
   };
 
   return (
-    <div className="chat-container">
-      {/* Welcome Screen */}
-      {showWelcome && (
-        <div className="welcome-screen">
-          <div className="welcome-content">
-            <header className="welcome-header">
-              <Heart className="heart-icon" size={48} />
-              <h1>Safe Space</h1>
-              <p className="tagline">Your mental health matters. We're here to listen.</p>
-            </header>
+    <div className="welcome-screen">
+      {/* Top Message */}
+      <header className="welcome-header">
+        <div className="brand-section">
+          <Heart className="heart-icon" size={48} />
+          <h1 className="brand-title">Safe Space</h1>
+        </div>
+        <p className="tagline">Your mental health matters. We're here to listen.</p>
+      </header>
 
-            <main className="welcome-main">
-              {/* Value Proposition */}
-              <section className="value-proposition">
-                <h2>Professional Mental Health Support</h2>
-                <p>
-                  Connect with trained counselors and peer support specialists in a safe, 
-                  judgment-free environment. Whether you're dealing with stress, anxiety, 
-                  depression, or just need someone to talk to, we're here 24/7.
-                </p>
-              </section>
+      {/* Main Content Grid */}
+      <main className="welcome-main">
+        {/* Encouragement Box */}
+        <section className="encouragement-box">
+          <div className="encouragement-content">
+            <h2 className="encouragement-title">💙 Daily Encouragement</h2>
+            <p className="encouragement-text">{encouragementMessage}</p>
+          </div>
+        </section>
 
-              {/* Crisis Resources */}
-              <section className="crisis-resources">
-                <h3>
-                  <Phone size={20} />
-                  Crisis Resources
-                </h3>
-                <div className="crisis-links">
+        {/* Start Chat Button - Prominent */}
+        <section className="start-chat-section">
+          <button 
+            className="start-chat-button"
+            onClick={handleStartChat}
+            aria-label="Start confidential chat session"
+          >
+            <MessageCircle size={24} />
+            Start Chat
+          </button>
+          <p className="chat-subtext">Free, confidential, and available 24/7</p>
+        </section>
+
+        {/* Interactive Features Grid */}
+        <div className="features-grid">
+          {/* Mood Check-in */}
+          <section className="feature-card mood-checkin">
+            <h3>Mood Check-in</h3>
+            <button 
+              className="feature-button mood-button"
+              onClick={() => setShowMoodModal(true)}
+            >
+              How are you feeling today?
+            </button>
+            {selectedMood && (
+              <div className="selected-mood">
+                <span>Last mood: {selectedMood.emoji} {selectedMood.label}</span>
+              </div>
+            )}
+          </section>
+
+          {/* Crisis Resources */}
+          <section className="feature-card crisis-resources">
+            <h3>Crisis Resources</h3>
+            <div className="crisis-dropdown-container">
+              <button 
+                className="feature-button crisis-button"
+                onClick={() => setShowCrisisDropdown(!showCrisisDropdown)}
+              >
+                <Phone size={20} />
+                Crisis Resources
+                <ChevronDown size={16} className={showCrisisDropdown ? 'rotated' : ''} />
+              </button>
+              {showCrisisDropdown && (
+                <div className="crisis-dropdown">
                   <a href="tel:988" className="crisis-link">
                     <strong>988</strong> - Suicide & Crisis Lifeline
                   </a>
@@ -52,444 +195,117 @@ const ChatWindow = () => {
                     <strong>911</strong> - Emergency Services
                   </a>
                 </div>
-              </section>
+              )}
+            </div>
+          </section>
 
-              {/* Privacy Assurance */}
-              <section className="privacy-assurance">
-                <h3>
-                  <Shield size={20} />
-                  Your Privacy is Protected
-                </h3>
-                <p>
-                  All conversations are confidential and encrypted. We follow strict HIPAA 
-                  guidelines to ensure your personal information remains secure. You can 
-                  chat anonymously or create an account - it's entirely your choice.
-                </p>
-              </section>
+          {/* Breathing Exercise */}
+          <section className="feature-card breathing-exercise">
+            <h3>Breathing Guide</h3>
+            <div className="breathing-container">
+              <button 
+                className={`breathing-circle ${breathingPhase}`}
+                onClick={handleBreathingExercise}
+                disabled={isBreathing}
+              >
+                <span className="breathing-text">{getBreathingText()}</span>
+                {isBreathing && (
+                  <div className="breathing-progress">
+                    {breathingCount}/5
+                  </div>
+                )}
+              </button>
+            </div>
+          </section>
+        </div>
 
-              {/* Call-to-Action */}
-              <div className="cta-section">
-                <button 
-                  className="cta-button"
-                  onClick={handleStartChat}
-                  aria-label="Start confidential chat session"
+        {/* Large Encouragement Message Section */}
+        <section className="large-encouragement">
+          <div className="encouragement-hero">
+            <h2 className="hero-message">You're stronger than you think</h2>
+            <p className="hero-subtext">
+              Every step you take towards mental wellness is an act of courage. 
+              You have the power to heal, grow, and create positive change in your life.
+            </p>
+          </div>
+        </section>
+
+        {/* Professional Integration Section */}
+        <section className="professional-integration">
+          <h2 className="section-title">
+            <UserCheck size={24} />
+            Professional Support Integration
+          </h2>
+          <div className="integration-grid">
+            <div className="integration-card">
+              <User size={20} />
+              <h3>Therapist Referrals</h3>
+              <p>Connect with licensed mental health professionals in your area</p>
+            </div>
+            <div className="integration-card">
+              <Shield size={20} />
+              <h3>Share with Providers</h3>
+              <p>Securely share chat summaries with your healthcare team</p>
+            </div>
+            <div className="integration-card">
+              <ExternalLink size={20} />
+              <h3>Human Support</h3>
+              <p>Escalate to trained counselors when you need additional help</p>
+            </div>
+          </div>
+        </section>
+
+        {/* Privacy Section */}
+        <section className="privacy-section">
+          <div className="privacy-content">
+            <Shield size={24} className="privacy-icon" />
+            <h3>Your Privacy is Protected</h3>
+            <p>
+              All conversations are confidential and encrypted. We follow strict HIPAA 
+              guidelines to ensure your personal information remains secure.
+            </p>
+          </div>
+        </section>
+      </main>
+
+      {/* Mood Selection Modal */}
+      {showMoodModal && (
+        <div className="modal-overlay" onClick={() => setShowMoodModal(false)}>
+          <div className="mood-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>How are you feeling today?</h3>
+              <button 
+                className="close-button"
+                onClick={() => setShowMoodModal(false)}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="mood-grid">
+              {moodOptions.map((mood) => (
+                <button
+                  key={mood.value}
+                  className="mood-option"
+                  onClick={() => handleMoodSelect(mood)}
                 >
-                  <MessageCircle size={20} />
-                  Start Chat
+                  <span className="mood-emoji">{mood.emoji}</span>
+                  <span className="mood-label">{mood.label}</span>
                 </button>
-                <p className="cta-subtext">
-                  Free, confidential, and available 24/7
-                </p>
-              </div>
-            </main>
-
-            <footer className="welcome-footer">
-              <p>
-                If you're experiencing a mental health emergency, please call 911 or 
-                go to your nearest emergency room immediately.
-              </p>
-            </footer>
+              ))}
+            </div>
           </div>
         </div>
       )}
 
-      {/* Message Display Area */}
-      {!showWelcome && (
-        <div className="message-display-area">
-          <div className="chat-header">
-            <button 
-              className="back-button"
-              onClick={handleBackToWelcome}
-              aria-label="Go back to welcome screen"
-            >
-              ← Back
-            </button>
-            <h2>Chat Session</h2>
-            <div className="status-indicator">
-              <span className="status-dot"></span>
-              Online
-            </div>
-          </div>
-          
-          <div className="messages-container">
-            <div className="welcome-message">
-              <div className="message-bubble counselor">
-                <p>Hello! I'm here to listen and support you. How are you feeling today?</p>
-                <small>Counselor • Just now</small>
-              </div>
-            </div>
-            
-            {/* This would be where actual messages would be displayed */}
-            <div className="message-placeholder">
-              <p>Messages will appear here...</p>
-            </div>
-          </div>
-          
-          <div className="message-input-area">
-            <input 
-              type="text" 
-              placeholder="Type your message here..."
-              className="message-input"
-              aria-label="Type your message"
-            />
-            <button className="send-button" aria-label="Send message">
-              Send
-            </button>
-          </div>
-        </div>
-      )}
-
-      <style jsx>{`
-        .chat-container {
-          min-height: 100vh;
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-          position: relative;
-          overflow: hidden;
-        }
-
-        .chat-container::before {
-          content: '';
-          position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background-image: 
-            radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
-            radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.15) 0%, transparent 50%),
-            radial-gradient(circle at 40% 40%, rgba(120, 119, 198, 0.2) 0%, transparent 50%);
-          pointer-events: none;
-        }
-
-        .welcome-screen {
-          min-height: 100vh;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          padding: 2rem;
-          position: relative;
-          z-index: 1;
-        }
-
-        .welcome-content {
-          background: rgba(255, 255, 255, 0.1);
-          backdrop-filter: blur(20px);
-          border-radius: 24px;
-          border: 1px solid rgba(255, 255, 255, 0.2);
-          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-          padding: 3rem;
-          max-width: 600px;
-          width: 100%;
-          text-align: center;
-          color: white;
-        }
-
-        .welcome-header {
-          margin-bottom: 2.5rem;
-        }
-
-        .heart-icon {
-          color: #ff6b6b;
-          margin-bottom: 1rem;
-          filter: drop-shadow(0 4px 8px rgba(255, 107, 107, 0.3));
-        }
-
-        .welcome-header h1 {
-          font-size: 2.5rem;
-          font-weight: 700;
-          margin: 0 0 0.5rem 0;
-          text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-
-        .tagline {
-          font-size: 1.2rem;
-          opacity: 0.9;
-          margin: 0;
-          font-weight: 300;
-        }
-
-        .welcome-main {
-          text-align: left;
-        }
-
-        .welcome-main section {
-          margin-bottom: 2rem;
-          padding: 1.5rem;
-          background: rgba(255, 255, 255, 0.08);
-          border-radius: 16px;
-          border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .welcome-main h2 {
-          font-size: 1.5rem;
-          margin: 0 0 1rem 0;
-          color: #f0f8ff;
-        }
-
-        .welcome-main h3 {
-          font-size: 1.2rem;
-          margin: 0 0 1rem 0;
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          color: #f0f8ff;
-        }
-
-        .welcome-main p {
-          line-height: 1.6;
-          margin: 0;
-          opacity: 0.9;
-        }
-
-        .crisis-links {
-          display: flex;
-          flex-direction: column;
-          gap: 0.5rem;
-        }
-
-        .crisis-link {
-          color: #87ceeb;
-          text-decoration: none;
-          padding: 0.5rem 0;
-          border-radius: 8px;
-          transition: all 0.3s ease;
-        }
-
-        .crisis-link:hover {
-          background: rgba(135, 206, 235, 0.1);
-          transform: translateX(4px);
-        }
-
-        .crisis-link.emergency {
-          color: #ff6b6b;
-        }
-
-        .cta-section {
-          text-align: center;
-          margin-top: 2rem;
-        }
-
-        .cta-button {
-          background: linear-gradient(135deg, #ff6b6b, #ff8e8e);
-          color: white;
-          border: none;
-          padding: 1rem 2rem;
-          border-radius: 50px;
-          font-size: 1.1rem;
-          font-weight: 600;
-          cursor: pointer;
-          display: inline-flex;
-          align-items: center;
-          gap: 0.5rem;
-          transition: all 0.3s ease;
-          box-shadow: 0 4px 20px rgba(255, 107, 107, 0.3);
-        }
-
-        .cta-button:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 8px 25px rgba(255, 107, 107, 0.4);
-        }
-
-        .cta-button:active {
-          transform: translateY(0);
-        }
-
-        .cta-subtext {
-          margin-top: 0.5rem;
-          opacity: 0.8;
-          font-size: 0.9rem;
-        }
-
-        .welcome-footer {
-          margin-top: 2rem;
-          padding-top: 1.5rem;
-          border-top: 1px solid rgba(255, 255, 255, 0.1);
-          font-size: 0.9rem;
-          opacity: 0.8;
-          text-align: center;
-        }
-
-        .message-display-area {
-          min-height: 100vh;
-          display: flex;
-          flex-direction: column;
-          background: rgba(255, 255, 255, 0.05);
-          backdrop-filter: blur(10px);
-          position: relative;
-          z-index: 1;
-        }
-
-        .chat-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 1rem 2rem;
-          background: rgba(255, 255, 255, 0.1);
-          border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-          color: white;
-        }
-
-        .back-button {
-          background: none;
-          border: none;
-          color: white;
-          font-size: 1rem;
-          cursor: pointer;
-          padding: 0.5rem;
-          border-radius: 8px;
-          transition: background 0.3s ease;
-        }
-
-        .back-button:hover {
-          background: rgba(255, 255, 255, 0.1);
-        }
-
-        .status-indicator {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          font-size: 0.9rem;
-        }
-
-        .status-dot {
-          width: 8px;
-          height: 8px;
-          background: #4ade80;
-          border-radius: 50%;
-          animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.5; }
-        }
-
-        .messages-container {
-          flex: 1;
-          padding: 2rem;
-          overflow-y: auto;
-        }
-
-        .message-bubble {
-          background: rgba(255, 255, 255, 0.1);
-          backdrop-filter: blur(10px);
-          border-radius: 18px;
-          padding: 1rem 1.5rem;
-          margin-bottom: 1rem;
-          color: white;
-          border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .message-bubble.counselor {
-          background: rgba(135, 206, 235, 0.2);
-          border-color: rgba(135, 206, 235, 0.3);
-        }
-
-        .message-bubble p {
-          margin: 0 0 0.5rem 0;
-          line-height: 1.5;
-        }
-
-        .message-bubble small {
-          opacity: 0.7;
-          font-size: 0.8rem;
-        }
-
-        .message-placeholder {
-          text-align: center;
-          color: rgba(255, 255, 255, 0.5);
-          margin-top: 2rem;
-        }
-
-        .message-input-area {
-          display: flex;
-          gap: 1rem;
-          padding: 1rem 2rem;
-          background: rgba(255, 255, 255, 0.1);
-          border-top: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .message-input {
-          flex: 1;
-          padding: 0.75rem 1rem;
-          border: 1px solid rgba(255, 255, 255, 0.2);
-          border-radius: 25px;
-          background: rgba(255, 255, 255, 0.1);
-          color: white;
-          font-size: 1rem;
-          backdrop-filter: blur(10px);
-        }
-
-        .message-input::placeholder {
-          color: rgba(255, 255, 255, 0.6);
-        }
-
-        .message-input:focus {
-          outline: none;
-          border-color: rgba(255, 255, 255, 0.4);
-        }
-
-        .send-button {
-          background: linear-gradient(135deg, #ff6b6b, #ff8e8e);
-          color: white;
-          border: none;
-          padding: 0.75rem 1.5rem;
-          border-radius: 25px;
-          font-weight: 600;
-          cursor: pointer;
-          transition: all 0.3s ease;
-        }
-
-        .send-button:hover {
-          transform: translateY(-1px);
-          box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
-        }
-
-        @media (max-width: 768px) {
-          .welcome-content {
-            padding: 2rem;
-            margin: 1rem;
-          }
-          
-          .welcome-header h1 {
-            font-size: 2rem;
-          }
-          
-          .crisis-links {
-            gap: 0.3rem;
-          }
-          
-          .chat-header {
-            padding: 1rem;
-          }
-          
-          .messages-container {
-            padding: 1rem;
-          }
-          
-          .message-input-area {
-            padding: 1rem;
-          }
-        }
-
-        @media (max-width: 480px) {
-          .welcome-content {
-            padding: 1.5rem;
-          }
-          
-          .welcome-main section {
-            padding: 1rem;
-          }
-          
-          .cta-button {
-            padding: 0.875rem 1.5rem;
-            font-size: 1rem;
-          }
-        }
-      `}</style>
+      {/* Footer */}
+      <footer className="welcome-footer">
+        <p>
+          If you're experiencing a mental health emergency, please call 911 or 
+          go to your nearest emergency room immediately.
+        </p>
+      </footer>
     </div>
   );
 };
 
-export default ChatWindow;
+export default WelcomeScreen;

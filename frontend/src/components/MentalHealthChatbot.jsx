@@ -1,194 +1,126 @@
 import React, { useState, useEffect, useRef } from 'react';
-import styles from '../styles/mentalchatbot.module.css';
-import { 
-  Send, 
-  Phone, 
-  AlertCircle, 
-  MessageCircle, 
-  Heart, 
-  Smile, 
-  Meh, 
-  Frown,
-  Wind,
-  Brain,
-  BookOpen,
-  Clock,
-  User,
-  Bot,
-  X,
-  Loader2
-} from 'lucide-react';
+import { Send, Phone, ChevronDown, X } from 'lucide-react';
 
 const MentalHealthChatbot = () => {
-  const [showPreChat, setShowPreChat] = useState(true);
-  const [userInfo, setUserInfo] = useState({
-    name: '',
-    mood: '',
-    supportType: ''
-  });
-  const [messages, setMessages] = useState([]);
+  const [messages, setMessages] = useState([
+    {
+      id: 1,
+      type: 'bot',
+      content: "Hello! I'm here to listen and support you. How are you feeling today?",
+      timestamp: new Date()
+    }
+  ]);
   const [inputMessage, setInputMessage] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [showCrisisPanel, setShowCrisisPanel] = useState(false);
-  const [sessionId, setSessionId] = useState(null);
-  const [quickReplies, setQuickReplies] = useState([]);
-  const [error, setError] = useState(null);
-  const [crisisResources, setCrisisResources] = useState([]);
+  const [showCrisisDropdown, setShowCrisisDropdown] = useState(false);
+  const [currentMood, setCurrentMood] = useState({ emoji: '😊', label: 'Feeling Good' });
+  const [encouragementMessage, setEncouragementMessage] = useState('');
   const messagesEndRef = useRef(null);
 
-  const API_BASE_URL = 'http://localhost:5000/api';
-
-  const defaultQuickReplies = [
-    { text: "I'm feeling anxious", icon: <AlertCircle size={16} /> },
-    { text: "Can we do a breathing exercise?", icon: <Wind size={16} /> },
-    { text: "I need coping strategies", icon: <Brain size={16} /> },
-    { text: "Tell me about mindfulness", icon: <Heart size={16} /> },
-    { text: "I'm having trouble sleeping", icon: <Clock size={16} /> },
-    { text: "Share some resources", icon: <BookOpen size={16} /> }
+  // Encouragement messages
+  const encouragementMessages = [
+    "You are not alone in this journey",
+    "Today is a new chance to heal",
+    "Your feelings are valid and important",
+    "Small steps forward are still progress",
+    "You have the strength within you",
+    "It's okay to not be okay today",
+    "You matter more than you know",
+    "Healing is not linear, and that's okay",
+    "You are worthy of love and support",
+    "Tomorrow can be different from today"
   ];
 
-  const moodOptions = [
-    { value: 'great', label: 'Great', icon: <Smile size={20} />, color: 'var(--mood-great)' },
-    { value: 'okay', label: 'Okay', icon: <Meh size={20} />, color: 'var(--mood-okay)' },
-    { value: 'struggling', label: 'Struggling', icon: <Frown size={20} />, color: 'var(--mood-struggling)' }
-  ];
+  // Set random encouragement message on component mount
+  useEffect(() => {
+    const randomMessage = encouragementMessages[Math.floor(Math.random() * encouragementMessages.length)];
+    setEncouragementMessage(randomMessage);
+  }, []);
 
-  const supportTypes = [
-    { value: 'chat', label: 'Just want to chat' },
-    { value: 'resources', label: 'Looking for resources' },
-    { value: 'exercises', label: 'Want guided exercises' },
-    { value: 'crisis', label: 'In crisis - need immediate help' }
-  ];
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
+  // Auto-scroll to bottom when new messages are added
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
-  useEffect(() => {
-    if (showCrisisPanel) {
-      fetchCrisisResources();
-    }
-  }, [showCrisisPanel]);
-
-  const handleApiError = (error) => {
-    console.error('API Error:', error);
-    setError('Unable to connect to the support server. Please try again.');
-    setIsLoading(false);
-    setIsTyping(false);
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  const fetchCrisisResources = async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/crisis-resources`);
-      if (response.ok) {
-        const data = await response.json();
-        setCrisisResources(data.resources);
-      }
-    } catch (error) {
-      console.error('Error fetching crisis resources:', error);
-    }
-  };
+  const handleSendMessage = async () => {
+    if (!inputMessage.trim() || isLoading) return;
 
-  const initializeChat = async (userInfo) => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      
-      const response = await fetch(`${API_BASE_URL}/chat/init`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ userInfo }),
-      });
+    const userMessage = {
+      id: messages.length + 1,
+      type: 'user',
+      content: inputMessage.trim(),
+      timestamp: new Date()
+    };
 
-      if (!response.ok) {
-        throw new Error('Failed to initialize chat');
-      }
-
-      const data = await response.json();
-      
-      setSessionId(data.sessionId);
-      setMessages(data.messages);
-      setQuickReplies(data.quickReplies || defaultQuickReplies);
-      
-      if (data.requiresCrisisPanel) {
-        setShowCrisisPanel(true);
-      }
-      
-      setIsLoading(false);
-    } catch (error) {
-      handleApiError(error);
-    }
-  };
-
-  const sendMessage = async (messageText) => {
-    if (!sessionId) {
-      setError('Chat session not initialized. Please refresh and try again.');
-      return;
-    }
-
-    try {
-      setIsTyping(true);
-      setError(null);
-
-      const response = await fetch(`${API_BASE_URL}/chat/message`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          sessionId,
-          message: messageText,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to send message');
-      }
-
-      const data = await response.json();
-      
-      setMessages(prev => [...prev, ...data.messages]);
-      
-      if (data.requiresCrisisPanel) {
-        setShowCrisisPanel(true);
-      }
-      
-      if (data.quickReplies) {
-        setQuickReplies(data.quickReplies.map(reply => ({
-          text: reply,
-          icon: <MessageCircle size={16} />
-        })));
-      }
-      
-      setIsTyping(false);
-    } catch (error) {
-      handleApiError(error);
-    }
-  };
-
-  const handlePreChatSubmit = async () => {
-    if (!userInfo.supportType) return;
-    setShowPreChat(false);
-    await initializeChat(userInfo);
-  };
-
-  const handleSendMessage = (messageText = null) => {
-    const text = messageText || inputMessage.trim();
-    if (!text) return;
-
+    setMessages(prev => [...prev, userMessage]);
     setInputMessage('');
-    sendMessage(text);
+    setIsLoading(true);
+
+    // Simulate bot response (replace with actual AI integration)
+    setTimeout(() => {
+      const botResponse = {
+        id: messages.length + 2,
+        type: 'bot',
+        content: generateBotResponse(inputMessage),
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, botResponse]);
+      setIsLoading(false);
+    }, 1000);
   };
 
-  const handleQuickReply = (text) => {
-    handleSendMessage(text);
+  const generateBotResponse = (userInput) => {
+    // Simple response logic - replace with actual AI integration
+   const responses = [
+  "I hear you. It takes courage to share your feelings. Can you tell me more about what's on your mind?",
+  "Thank you for opening up. Your feelings are completely valid. What would help you feel more supported right now?",
+  "That sounds really difficult. Remember, it's okay to feel this way. Have you been able to talk to anyone else about this?",
+  "I'm glad you're reaching out. Taking care of your mental health is so important. What's one small thing that usually makes you feel a little better?",
+  "Your strength in reaching out shows how much you care about yourself. What would you like to focus on in our conversation today?",
+  "I can tell this is really weighing on you. Would it help to talk through what's been on your mind lately?",
+  "You're doing the right thing by reaching out. Let's take a moment to breathe together—would that feel supportive right now?",
+  "That sounds like a lot to handle. Have you noticed any small moments of relief, even briefly?",
+  "Your feelings make so much sense given what you're going through. What do you wish others understood about this?",
+  "It's okay to not have all the answers. Would it help to explore this step by step?",
+  "I'm here to listen without judgment. What's one thing you'd like to feel differently about this situation?",
+  "You're not alone in this. Many people find it helpful to name their emotions—how would you describe yours?",
+  "It takes strength to acknowledge these feelings. What's something that's helped you cope in the past?",
+  "I hear how difficult this is for you. What would support look like for you today?",
+  "This sounds deeply painful. Would you like to focus on problem-solving, or just feel heard for now?",
+  "Your honesty is so important. Let's slow down—what's coming up for you as we talk about this?",
+  "I'm glad you're sharing this with me. What's one thing that usually brings you comfort, even a little?",
+  "That sounds exhausting to carry. How can I help you feel grounded in this moment?",
+  "You deserve kindness right now. Is there a part of this that feels easier to talk about first?",
+  "I can sense how much this matters to you. What's a small step that might ease the pressure?",
+  "It's okay to feel this way. Have you found anything that helps when things feel this heavy?",
+  "Thank you for trusting me with this. What would make this conversation feel most helpful for you?",
+  "I'm holding space for you. Would it help to pause and take three deep breaths together?",
+  "This sounds like it's been really hard. What's something you'd tell a friend going through the same thing?",
+  "You're not failing—you're feeling. What do you need most from me right now?",
+  "I hear how much this is affecting you. What's one thing you'd like to feel differently by the end of our chat?",
+  "Your emotions are valid, even if they're complicated. Would it help to talk about what's underneath this?",
+  "It's brave to sit with these feelings. What's a tiny act of self-care you could try today?",
+  "I'm here to walk through this with you. What's on your mind in this very moment?",
+  "That sounds overwhelming. Let's break it down—what's one part of this you'd like to focus on?",
+  "You're allowed to feel this way. What's something kind you could do for yourself right now?",
+  "I'm listening closely. What's a word or image that captures how you're feeling?",
+  "This matters. Would it help to imagine what relief might look like, even just a little?",
+  "You're not broken—you're responding to real challenges. What's one thing that usually helps you recharge?",
+  "Let's honor what you're feeling. What's a next step that feels manageable today?",
+  "I'm with you in this. What's something you'd like to remind yourself of right now?"
+];
+    return responses[Math.floor(Math.random() * responses.length)];
+  };
+
+  const formatTime = (timestamp) => {
+    return timestamp.toLocaleTimeString('en-US', { 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    });
   };
 
   const handleKeyPress = (e) => {
@@ -198,206 +130,247 @@ const MentalHealthChatbot = () => {
     }
   };
 
-  if (showPreChat) {
-    return (
-      <div className={styles['chatbot-gradient-bg']}>
-        {/* Animated background elements */}
-        <div className={styles['animated-bg-element']}></div>
-        <div className={styles['animated-bg-element']}></div>
-        <div className={styles['animated-bg-element']}></div>
-
-        <div className={styles['pre-chat-container']}>
-          <div className={styles['pre-chat-content']}>
-            <div className={styles['pre-chat-header']}>
-              <Heart className={styles['heart-icon']} size={48} />
-              <h1>Welcome to Mental Health Support</h1>
-              <p>Let's personalize your experience to better support you</p>
-            </div>
-
-            <form className={styles['pre-chat-form']}>
-              <div className={styles['form-group']}>
-                <label>
-                  <User size={20} />
-                  Name (Optional)
-                </label>
-                <input
-                  type="text"
-                  value={userInfo.name}
-                  onChange={(e) => setUserInfo({...userInfo, name: e.target.value})}
-                  placeholder="How would you like to be addressed?"
-                  className={styles['form-input']}
-                />
-              </div>
-
-              <div className={styles['form-group']}>
-                <label>
-                  <Heart size={20} />
-                  How are you feeling today?
-                </label>
-                <div className={styles['mood-selector']}>
-                  {moodOptions.map(mood => (
-                    <button
-                      key={mood.value}
-                      type="button"
-                      className={`${styles['mood-option']} ${userInfo.mood === mood.value ? styles['selected'] : ''}`}
-                      style={{ '--mood-color': mood.color }}
-                      onClick={() => setUserInfo({...userInfo, mood: mood.value})}
-                    >
-                      <div style={{ color: mood.color }}>{mood.icon}</div>
-                      <span>{mood.label}</span>
-                    </button>
-                  ))}
+  return (
+    <div style={{
+      minHeight: '100vh',
+      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      padding: '20px',
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center'
+    }}>
+      <div style={{
+        width: '80%',
+        maxWidth: '800px',
+        height: '90vh',
+        display: 'flex',
+        flexDirection: 'column',
+        background: 'white',
+        borderRadius: '12px',
+        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.1)',
+        overflow: 'hidden'
+      }}>
+        
+        {/* Header */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          padding: '16px 20px',
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          color: 'white'
+        }}>
+          <div style={{
+            fontSize: '16px',
+            fontWeight: '600',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}>
+            <span>{currentMood.emoji}</span>
+            <span>{currentMood.label}</span>
+          </div>
+          
+          <div style={{ position: 'relative' }}>
+            <button
+              onClick={() => setShowCrisisDropdown(!showCrisisDropdown)}
+              style={{
+                background: 'rgba(255, 255, 255, 0.2)',
+                border: 'none',
+                borderRadius: '50%',
+                width: '40px',
+                height: '40px',
+                cursor: 'pointer',
+                fontSize: '18px',
+                transition: 'all 0.3s ease',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'white'
+              }}
+              onMouseOver={(e) => {
+                e.target.style.background = 'rgba(255, 255, 255, 0.3)';
+                e.target.style.transform = 'scale(1.05)';
+              }}
+              onMouseOut={(e) => {
+                e.target.style.background = 'rgba(255, 255, 255, 0.2)';
+                e.target.style.transform = 'scale(1)';
+              }}
+            >
+              🆘
+            </button>
+            
+            {showCrisisDropdown && (
+              <div style={{
+                position: 'absolute',
+                top: '50px',
+                right: '0',
+                background: 'white',
+                borderRadius: '8px',
+                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)',
+                padding: '16px',
+                minWidth: '280px',
+                zIndex: 1000,
+                color: '#333'
+              }}>
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: '12px'
+                }}>
+                  <h4 style={{
+                    margin: 0,
+                    color: '#e74c3c',
+                    fontSize: '14px'
+                  }}>
+                    Crisis Resources
+                  </h4>
+                  <button
+                    onClick={() => setShowCrisisDropdown(false)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      color: '#666'
+                    }}
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+                
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '8px'
+                }}>
+                  <a href="tel:988" style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    padding: '8px 0',
+                    borderBottom: '1px solid #eee',
+                    textDecoration: 'none',
+                    color: '#333'
+                  }}>
+                    <strong style={{ fontSize: '14px', marginBottom: '2px' }}>988</strong>
+                    <span style={{ fontSize: '12px', color: '#666' }}>Suicide & Crisis Lifeline</span>
+                  </a>
+                  
+                  <a href="tel:741741" style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    padding: '8px 0',
+                    borderBottom: '1px solid #eee',
+                    textDecoration: 'none',
+                    color: '#333'
+                  }}>
+                    <strong style={{ fontSize: '14px', marginBottom: '2px' }}>741741</strong>
+                    <span style={{ fontSize: '12px', color: '#666' }}>Crisis Text Line</span>
+                  </a>
+                  
+                  <a href="tel:911" style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    padding: '8px 0',
+                    textDecoration: 'none',
+                    color: '#e74c3c'
+                  }}>
+                    <strong style={{ fontSize: '14px', marginBottom: '2px' }}>911</strong>
+                    <span style={{ fontSize: '12px', color: '#666' }}>Emergency Services</span>
+                  </a>
                 </div>
               </div>
-
-              <div className={styles['form-group']}>
-                <label>
-                  <MessageCircle size={20} />
-                  What kind of support are you looking for?
-                </label>
-                <select
-                  value={userInfo.supportType}
-                  onChange={(e) => setUserInfo({...userInfo, supportType: e.target.value})}
-                  className={styles['form-select']}
-                  required
-                >
-                  <option value="">Select support type...</option>
-                  {supportTypes.map(type => (
-                    <option key={type.value} value={type.value}>
-                      {type.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <button 
-                type="button" 
-                onClick={handlePreChatSubmit}
-                className={styles['start-chat-button']}
-                disabled={isLoading || !userInfo.supportType}
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className={styles['loading-spinner']} size={20} />
-                    Connecting...
-                  </>
-                ) : (
-                  <>
-                    Start Chat
-                    <MessageCircle size={20} />
-                  </>
-                )}
-              </button>
-            </form>
-
-            {error && (
-              <div className={styles['error-message']}>
-                <AlertCircle size={16} />
-                {error}
-              </div>
             )}
-
-            <div className={styles['pre-chat-footer']}>
-              <p>
-                <AlertCircle size={16} />
-                If you're in crisis, please call 911 or the 988 Suicide & Crisis Lifeline immediately.
-              </p>
-            </div>
           </div>
         </div>
-      </div>
-    );
-  }
 
-  return (
-    <div className={styles['chat-layout']}>
-      {/* Crisis Panel */}
-      {showCrisisPanel && (
-        <div className={`${styles['crisis-panel']} ${styles['visible']}`}>
-          <div className={styles['crisis-header']}>
-            <AlertCircle size={20} />
-            <h3>Crisis Support</h3>
-            <button
-              onClick={() => setShowCrisisPanel(false)}
-              className={styles['close-panel']}
-            >
-              <X size={20} />
-            </button>
-          </div>
-          
-          <div className={styles['crisis-links']}>
-            <a href="tel:988" className={`${styles['crisis-link']} ${styles['primary']}`}>
-              <Phone size={20} />
-              <div>
-                <strong>988 Suicide & Crisis Lifeline</strong>
-                <span>24/7 confidential support</span>
-              </div>
-            </a>
-            <a href="tel:911" className={`${styles['crisis-link']} ${styles['emergency']}`}>
-              <Phone size={20} />
-              <div>
-                <strong>Emergency Services</strong>
-                <span>Call 911 for immediate help</span>
-              </div>
-            </a>
-          </div>
-          
-          <p className={styles['crisis-note']}>
-            Your safety is our priority. Please reach out for immediate help if needed.
+        {/* Encouragement Box */}
+        <div style={{
+          background: 'linear-gradient(45deg, #ffeaa7, #fab1a0)',
+          padding: '12px 20px',
+          textAlign: 'center',
+          borderBottom: '1px solid #eee'
+        }}>
+          <p style={{
+            margin: 0,
+            fontSize: '14px',
+            color: '#2d3436',
+            fontStyle: 'italic'
+          }}>
+            💙 {encouragementMessage}
           </p>
         </div>
-      )}
 
-      {/* Main Chat */}
-      <div className={styles['chat-main']}>
-        <div className={styles['chat-header']}>
-          <div className={styles['chat-title']}>
-            <Bot size={24} />
-            <h2>Mental Health Support</h2>
-          </div>
-          <button
-            onClick={() => setShowCrisisPanel(!showCrisisPanel)}
-            className={styles['crisis-toggle']}
-          >
-            <AlertCircle size={16} />
-            Crisis Help
-          </button>
-        </div>
-
-        <div className={styles['messages-container']}>
+        {/* Messages Container */}
+        <div style={{
+          flex: 1,
+          overflowY: 'auto',
+          padding: '20px',
+          background: '#f8f9fa'
+        }}>
           {messages.map((message) => (
             <div
               key={message.id}
-              className={`${styles['message']} ${styles[message.sender]}`}
+              style={{
+                marginBottom: '16px',
+                display: 'flex',
+                justifyContent: message.type === 'user' ? 'flex-end' : 'flex-start'
+              }}
             >
-              <div className={styles['message-avatar']}>
-                {message.sender === 'user' ? <User size={20} /> : <Bot size={20} />}
-              </div>
-              <div className={styles['message-content']}>
-                <div className={styles['message-bubble']}>
-                  <p>{message.text}</p>
-                </div>
-                <div className={styles['message-time']}>
-                  <Clock size={12} />
-                  {new Date(message.timestamp).toLocaleTimeString()}
-                </div>
+              <div style={{
+                maxWidth: '70%',
+                padding: '12px 16px',
+                borderRadius: '18px',
+                background: message.type === 'user' 
+                  ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                  : 'white',
+                color: message.type === 'user' ? 'white' : '#333',
+                border: message.type === 'bot' ? '1px solid #e0e0e0' : 'none',
+                borderBottomRightRadius: message.type === 'user' ? '4px' : '18px',
+                borderBottomLeftRadius: message.type === 'bot' ? '4px' : '18px'
+              }}>
+                <p style={{
+                  margin: 0,
+                  lineHeight: 1.4,
+                  fontSize: '14px'
+                }}>
+                  {message.content}
+                </p>
+                <span style={{
+                  fontSize: '11px',
+                  opacity: 0.7,
+                  marginTop: '4px',
+                  display: 'block'
+                }}>
+                  {formatTime(message.timestamp)}
+                </span>
               </div>
             </div>
           ))}
           
-          {isTyping && (
-            <div className={`${styles['message']} ${styles['bot']}`}>
-              <div className={styles['message-avatar']}>
-                <Bot size={20} />
-              </div>
-              <div className={styles['message-content']}>
-                <div className={styles['message-bubble']}>
-                  <div className={styles['typing-dots']}>
-                    <span></span>
-                    <span></span>
-                    <span></span>
-                  </div>
-                </div>
+          {isLoading && (
+            <div style={{
+              marginBottom: '16px',
+              display: 'flex',
+              justifyContent: 'flex-start'
+            }}>
+              <div style={{
+                maxWidth: '70%',
+                padding: '12px 16px',
+                borderRadius: '18px',
+                background: 'white',
+                color: '#333',
+                border: '1px solid #e0e0e0',
+                borderBottomLeftRadius: '4px'
+              }}>
+                <p style={{
+                  margin: 0,
+                  lineHeight: 1.4,
+                  fontSize: '14px',
+                  opacity: 0.7
+                }}>
+                  Typing...
+                </p>
               </div>
             </div>
           )}
@@ -405,48 +378,65 @@ const MentalHealthChatbot = () => {
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Quick Replies */}
-        {quickReplies.length > 0 && (
-          <div className={styles['quick-replies']}>
-            <div className={styles['quick-replies-container']}>
-              {quickReplies.map((reply, index) => (
-                <button
-                  key={index}
-                  onClick={() => handleQuickReply(reply.text)}
-                  className={styles['quick-reply']}
-                >
-                  {reply.icon}
-                  {reply.text}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Input */}
-        <div className={styles['message-input-area']}>
-          {error && (
-            <div className={styles['error-message']}>
-              <AlertCircle size={16} />
-              {error}
-            </div>
-          )}
-          
+        {/* Input Area */}
+        <div style={{
+          display: 'flex',
+          padding: '16px 20px',
+          background: 'white',
+          borderTop: '1px solid #eee',
+          gap: '12px'
+        }}>
           <input
             type="text"
             value={inputMessage}
             onChange={(e) => setInputMessage(e.target.value)}
             onKeyPress={handleKeyPress}
             placeholder="Type your message..."
-            className={styles['message-input']}
-            disabled={isTyping}
+            style={{
+              flex: 1,
+              padding: '12px 16px',
+              border: '1px solid #ddd',
+              borderRadius: '24px',
+              fontSize: '14px',
+              outline: 'none',
+              transition: 'border-color 0.3s ease'
+            }}
+            onFocus={(e) => e.target.style.borderColor = '#667eea'}
+            onBlur={(e) => e.target.style.borderColor = '#ddd'}
           />
+          
           <button
-            onClick={() => handleSendMessage()}
-            disabled={!inputMessage.trim() || isTyping}
-            className={styles['send-button']}
+            onClick={handleSendMessage}
+            disabled={!inputMessage.trim() || isLoading}
+            style={{
+              padding: '12px 24px',
+              background: (!inputMessage.trim() || isLoading) 
+                ? '#ccc' 
+                : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '24px',
+              fontSize: '14px',
+              fontWeight: '600',
+              cursor: (!inputMessage.trim() || isLoading) ? 'not-allowed' : 'pointer',
+              transition: 'all 0.3s ease',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}
+            onMouseOver={(e) => {
+              if (!(!inputMessage.trim() || isLoading)) {
+                e.target.style.transform = 'translateY(-2px)';
+                e.target.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.4)';
+              }
+            }}
+            onMouseOut={(e) => {
+              e.target.style.transform = 'translateY(0)';
+              e.target.style.boxShadow = 'none';
+            }}
           >
-            <Send size={20} />
+            <Send size={16} />
+            Send
           </button>
         </div>
       </div>
