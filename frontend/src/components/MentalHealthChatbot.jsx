@@ -2,25 +2,21 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Send, Phone, ChevronDown, X, AlertCircle } from 'lucide-react';
 
 const MentalHealthChatbot = () => {
-  const [messages, setMessages] = useState([
-    {
-      id: 1,
-      type: 'bot',
-      content: "Hello! I'm here to listen and support you. How are you feeling today?",
-      timestamp: new Date()
-    }
-  ]);
+  const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showCrisisDropdown, setShowCrisisDropdown] = useState(false);
   const [currentMood, setCurrentMood] = useState({ emoji: '😊', label: 'Feeling Good' });
   const [encouragementMessage, setEncouragementMessage] = useState('');
   const [error, setError] = useState(null);
+  const [sessionId, setSessionId] = useState(null);
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [quickReplies, setQuickReplies] = useState([]);
+  const [requiresCrisisPanel, setRequiresCrisisPanel] = useState(false);
   const messagesEndRef = useRef(null);
 
   // Backend configuration
-  const BACKEND_URL = 'http://localhost:5000';
-  const CHAT_ENDPOINT = '/api/chat';
+  const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
   // Encouragement messages
   const encouragementMessages = [
@@ -36,8 +32,9 @@ const MentalHealthChatbot = () => {
     "Tomorrow can be different from today"
   ];
 
-  // Set random encouragement message on component mount
+  // Initialize chat session when component mounts
   useEffect(() => {
+    initializeChat();
     const randomMessage = encouragementMessages[Math.floor(Math.random() * encouragementMessages.length)];
     setEncouragementMessage(randomMessage);
   }, []);
@@ -47,19 +44,35 @@ const MentalHealthChatbot = () => {
     scrollToBottom();
   }, [messages]);
 
+  // Show crisis panel when required
+  useEffect(() => {
+    if (requiresCrisisPanel) {
+      setShowCrisisDropdown(true);
+    }
+  }, [requiresCrisisPanel]);
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  // Function to send message to backend
-  const sendMessageToBackend = async (message) => {
+  // Initialize chat session with backend
+  const initializeChat = async () => {
     try {
-      const response = await fetch(`${BACKEND_URL}${CHAT_ENDPOINT}`, {
+      setIsLoading(true);
+      setError(null);
+
+      const response = await fetch(`${API_BASE_URL}/api/chat/init`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ message }),
+        body: JSON.stringify({
+          userInfo: {
+            name: null, // Can be set from user input later
+            mood: currentMood.label,
+            supportType: 'general'
+          }
+        }),
       });
 
       if (!response.ok) {
@@ -67,61 +80,131 @@ const MentalHealthChatbot = () => {
       }
 
       const data = await response.json();
-      return data.message || data.response || 'I hear you. Can you tell me more about what\'s on your mind?';
+      
+      // Set session data
+      setSessionId(data.sessionId);
+      setMessages(data.messages || []);
+      setQuickReplies(data.quickReplies || []);
+      setRequiresCrisisPanel(data.requiresCrisisPanel || false);
+      setIsInitialized(true);
+
     } catch (error) {
-      console.error('Error communicating with backend:', error);
-      throw error;
-    }
-  };
-
-  const handleSendMessage = async () => {
-    if (!inputMessage.trim() || isLoading) return;
-
-    const userMessage = {
-      id: messages.length + 1,
-      type: 'user',
-      content: inputMessage.trim(),
-      timestamp: new Date()
-    };
-
-    setMessages(prev => [...prev, userMessage]);
-    const currentInput = inputMessage.trim();
-    setInputMessage('');
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      // Send message to backend
-      const botResponseContent = await sendMessageToBackend(currentInput);
+      console.error('Error initializing chat:', error);
+      setError('Unable to connect to the support system. Please check your connection and try again.');
       
-      const botResponse = {
-        id: messages.length + 2,
-        type: 'bot',
-        content: botResponseContent,
-        timestamp: new Date()
-      };
-      
-      setMessages(prev => [...prev, botResponse]);
-    } catch (error) {
-      // Handle backend error
-      setError('Unable to connect to the support system. Please try again.');
-      
-      // Fallback to local response
-      const fallbackResponse = {
-        id: messages.length + 2,
-        type: 'bot',
-        content: "I apologize, but I'm having trouble connecting right now. Your mental health is important - if you're in crisis, please reach out to the crisis resources above or contact emergency services.",
-        timestamp: new Date()
-      };
-      
-      setMessages(prev => [...prev, fallbackResponse]);
+      // Fallback initialization
+      setMessages([{
+        id: 'fallback-1',
+        text: "Hello! I'm here to support you, but I'm having trouble connecting to our main system. I can still help you with basic support. How are you feeling today?",
+        sender: 'bot',
+        timestamp: new Date().toISOString()
+      }]);
+      setIsInitialized(true);
     } finally {
       setIsLoading(false);
     }
   };
 
+  // Send message to backend
+  const sendMessageToBackend = async (message) => {
+    if (!sessionId) {
+      throw new Error('No active session');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/chat/message`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        sessionId,
+        message
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+    }
+
+    return await response.json();
+  };
+
+  const handleSendMessage = async () => {
+    if (!inputMessage.trim() || isLoading) return;
+
+    const messageText = inputMessage.trim();
+    setInputMessage('');
+    setIsLoading(true);
+    setError(null);
+    setQuickReplies([]); // Clear previous quick replies
+
+    try {
+      if (sessionId) {
+        // Send to backend
+        const data = await sendMessageToBackend(messageText);
+        
+        // Backend returns an array of messages (user message + bot response)
+        if (data.messages && Array.isArray(data.messages)) {
+          setMessages(prev => [...prev, ...data.messages]);
+        }
+        
+        // Handle additional response data
+        setQuickReplies(data.quickReplies || []);
+        setRequiresCrisisPanel(data.requiresCrisisPanel || false);
+        
+      } else {
+        // Fallback handling when no session
+        const userMessage = {
+          id: `user-${Date.now()}`,
+          text: messageText,
+          sender: 'user',
+          timestamp: new Date().toISOString()
+        };
+
+        const botResponse = {
+          id: `bot-${Date.now()}`,
+          text: "I hear you. While I'm having connection issues, please know that your feelings are valid. If you're in crisis, please use the emergency resources above.",
+          sender: 'bot',
+          timestamp: new Date().toISOString()
+        };
+
+        setMessages(prev => [...prev, userMessage, botResponse]);
+      }
+    } catch (error) {
+      console.error('Error sending message:', error);
+      
+      // Show error and create fallback messages
+      setError('Unable to send message. Please try again.');
+      
+      const userMessage = {
+        id: `user-${Date.now()}`,
+        text: messageText,
+        sender: 'user',
+        timestamp: new Date().toISOString()
+      };
+
+      const errorResponse = {
+        id: `bot-error-${Date.now()}`,
+        text: "I apologize, but I'm having trouble connecting right now. Your mental health is important - if you're in crisis, please reach out to the crisis resources or contact emergency services.",
+        sender: 'bot',
+        timestamp: new Date().toISOString()
+      };
+
+      setMessages(prev => [...prev, userMessage, errorResponse]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleQuickReply = (reply) => {
+    setInputMessage(reply);
+    setQuickReplies([]);
+  };
+
   const formatTime = (timestamp) => {
-    return timestamp.toLocaleTimeString('en-US', { 
+    const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
+    return date.toLocaleTimeString('en-US', { 
       hour: '2-digit', 
       minute: '2-digit' 
     });
@@ -137,6 +220,32 @@ const MentalHealthChatbot = () => {
   const dismissError = () => {
     setError(null);
   };
+
+  // Show loading state during initialization
+  if (!isInitialized) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        padding: '20px',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center'
+      }}>
+        <div style={{
+          background: 'white',
+          padding: '40px',
+          borderRadius: '12px',
+          textAlign: 'center',
+          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.1)'
+        }}>
+          <div style={{ fontSize: '24px', marginBottom: '16px' }}>🤗</div>
+          <h3 style={{ margin: '0 0 16px 0', color: '#333' }}>Connecting to Support...</h3>
+          <p style={{ margin: 0, color: '#666' }}>Setting up your safe space</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{
@@ -177,13 +286,20 @@ const MentalHealthChatbot = () => {
           }}>
             <span>{currentMood.emoji}</span>
             <span>{currentMood.label}</span>
+            {sessionId && (
+              <span style={{ fontSize: '12px', opacity: 0.8, marginLeft: '8px' }}>
+                • Connected
+              </span>
+            )}
           </div>
           
           <div style={{ position: 'relative' }}>
             <button
               onClick={() => setShowCrisisDropdown(!showCrisisDropdown)}
               style={{
-                background: 'rgba(255, 255, 255, 0.2)',
+                background: requiresCrisisPanel 
+                  ? 'rgba(231, 76, 60, 0.8)' 
+                  : 'rgba(255, 255, 255, 0.2)',
                 border: 'none',
                 borderRadius: '50%',
                 width: '40px',
@@ -194,14 +310,19 @@ const MentalHealthChatbot = () => {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: 'white'
+                color: 'white',
+                animation: requiresCrisisPanel ? 'pulse 2s infinite' : 'none'
               }}
               onMouseOver={(e) => {
-                e.target.style.background = 'rgba(255, 255, 255, 0.3)';
+                e.target.style.background = requiresCrisisPanel 
+                  ? 'rgba(231, 76, 60, 1)' 
+                  : 'rgba(255, 255, 255, 0.3)';
                 e.target.style.transform = 'scale(1.05)';
               }}
               onMouseOut={(e) => {
-                e.target.style.background = 'rgba(255, 255, 255, 0.2)';
+                e.target.style.background = requiresCrisisPanel 
+                  ? 'rgba(231, 76, 60, 0.8)' 
+                  : 'rgba(255, 255, 255, 0.2)';
                 e.target.style.transform = 'scale(1)';
               }}
             >
@@ -232,7 +353,7 @@ const MentalHealthChatbot = () => {
                     color: '#e74c3c',
                     fontSize: '14px'
                   }}>
-                    Crisis Resources
+                    🚨 Crisis Resources
                   </h4>
                   <button
                     onClick={() => setShowCrisisDropdown(false)}
@@ -261,10 +382,10 @@ const MentalHealthChatbot = () => {
                     color: '#333'
                   }}>
                     <strong style={{ fontSize: '14px', marginBottom: '2px' }}>988</strong>
-                    <span style={{ fontSize: '12px', color: '#666' }}>Suicide & Crisis Lifeline</span>
+                    <span style={{ fontSize: '12px', color: '#666' }}>Suicide & Crisis Lifeline (24/7)</span>
                   </a>
                   
-                  <a href="tel:741741" style={{
+                  <a href="sms:741741?body=HOME" style={{
                     display: 'flex',
                     flexDirection: 'column',
                     padding: '8px 0',
@@ -272,7 +393,7 @@ const MentalHealthChatbot = () => {
                     textDecoration: 'none',
                     color: '#333'
                   }}>
-                    <strong style={{ fontSize: '14px', marginBottom: '2px' }}>741741</strong>
+                    <strong style={{ fontSize: '14px', marginBottom: '2px' }}>Text HOME to 741741</strong>
                     <span style={{ fontSize: '12px', color: '#666' }}>Crisis Text Line</span>
                   </a>
                   
@@ -351,27 +472,27 @@ const MentalHealthChatbot = () => {
               style={{
                 marginBottom: '16px',
                 display: 'flex',
-                justifyContent: message.type === 'user' ? 'flex-end' : 'flex-start'
+                justifyContent: message.sender === 'user' ? 'flex-end' : 'flex-start'
               }}
             >
               <div style={{
                 maxWidth: '70%',
                 padding: '12px 16px',
                 borderRadius: '18px',
-                background: message.type === 'user' 
+                background: message.sender === 'user' 
                   ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
                   : 'white',
-                color: message.type === 'user' ? 'white' : '#333',
-                border: message.type === 'bot' ? '1px solid #e0e0e0' : 'none',
-                borderBottomRightRadius: message.type === 'user' ? '4px' : '18px',
-                borderBottomLeftRadius: message.type === 'bot' ? '4px' : '18px'
+                color: message.sender === 'user' ? 'white' : '#333',
+                border: message.sender === 'bot' ? '1px solid #e0e0e0' : 'none',
+                borderBottomRightRadius: message.sender === 'user' ? '4px' : '18px',
+                borderBottomLeftRadius: message.sender === 'bot' ? '4px' : '18px'
               }}>
                 <p style={{
                   margin: 0,
                   lineHeight: 1.4,
                   fontSize: '14px'
                 }}>
-                  {message.content}
+                  {message.text || message.content}
                 </p>
                 <span style={{
                   fontSize: '11px',
@@ -406,7 +527,7 @@ const MentalHealthChatbot = () => {
                   fontSize: '14px',
                   opacity: 0.7
                 }}>
-                  Bot is typing...
+                  Support assistant is typing...
                 </p>
               </div>
             </div>
@@ -414,6 +535,44 @@ const MentalHealthChatbot = () => {
           
           <div ref={messagesEndRef} />
         </div>
+
+        {/* Quick Replies */}
+        {quickReplies.length > 0 && (
+          <div style={{
+            padding: '12px 20px',
+            background: '#f8f9fa',
+            borderTop: '1px solid #eee',
+            display: 'flex',
+            gap: '8px',
+            flexWrap: 'wrap'
+          }}>
+            {quickReplies.map((reply, index) => (
+              <button
+                key={index}
+                onClick={() => handleQuickReply(reply)}
+                style={{
+                  padding: '8px 12px',
+                  background: 'white',
+                  border: '1px solid #ddd',
+                  borderRadius: '16px',
+                  fontSize: '12px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseOver={(e) => {
+                  e.target.style.background = '#667eea';
+                  e.target.style.color = 'white';
+                }}
+                onMouseOut={(e) => {
+                  e.target.style.background = 'white';
+                  e.target.style.color = '#333';
+                }}
+              >
+                {reply}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Input Area */}
         <div style={{
@@ -476,6 +635,16 @@ const MentalHealthChatbot = () => {
             Send
           </button>
         </div>
+
+        <style>
+          {`
+            @keyframes pulse {
+              0% { opacity: 1; }
+              50% { opacity: 0.5; }
+              100% { opacity: 1; }
+            }
+          `}
+        </style>
       </div>
     </div>
   );

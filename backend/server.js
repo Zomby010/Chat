@@ -13,13 +13,18 @@ const PORT = process.env.PORT || 5000;
 // Trust proxy for accurate IP addresses (important for rate limiting)
 app.set('trust proxy', 1);
 
-// Middleware
+// CORS Configuration - Fixed
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
-    ? ['https://your-frontend-domain.com'] // Replace with your actual frontend domain
-    : ['http://localhost:3000', 'http://127.0.0.1:3000'],
-  credentials: true
+    ? (process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : false)
+    : true, // Allow all origins in development
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
+
+// Handle preflight requests
+app.options('*', cors());
 
 app.use(express.json({ 
   limit: '10mb', // Limit request size
@@ -39,62 +44,62 @@ app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('X-Powered-By', 'Mental Health Support API');
   next();
 });
 
-// Request logging middleware (optional)
+// Request logging middleware (enhanced for debugging)
 if (process.env.NODE_ENV === 'development') {
   app.use((req, res, next) => {
-    console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+    console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`, {
+      headers: req.headers,
+      body: req.method === 'POST' ? req.body : undefined,
+      query: req.query
+    });
     next();
   });
 }
 
-// API Routes
+// API Routes - Primary routes
 app.use('/api/chat', chatRoutes);
 
-// Legacy routes (maintain backward compatibility with your existing frontend)
-app.post('/api/chat/init', (req, res) => {
-  res.redirect(307, '/api/chat/init'); // Temporary redirect to new route
-});
-
-app.post('/api/chat/message', (req, res) => {
-  res.redirect(307, '/api/chat/message'); // Temporary redirect to new route
-});
-
-app.get('/api/chat/:sessionId', (req, res) => {
-  res.redirect(307, `/api/chat/${req.params.sessionId}`);
-});
-
-app.get('/api/crisis-resources', (req, res) => {
-  res.redirect(307, '/api/chat/crisis/resources');
-});
-
-// Health check endpoint
+// Health check endpoint - Enhanced
 app.get('/api/health', (req, res) => {
   const healthStatus = {
     status: 'healthy',
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
     environment: process.env.NODE_ENV || 'development',
-    version: require('./package.json').version,
+    version: '1.0.0', // Hardcoded since package.json might not exist
     services: {
       openai: !!process.env.OPENAI_API_KEY,
-      database: 'in-memory', // Update if you add a real database
+      database: 'in-memory',
+      cors: 'enabled'
     },
     memory: process.memoryUsage(),
-    pid: process.pid
+    pid: process.pid,
+    activeSessions: require('./controllers/chatController').chatSessions.size
   };
 
   res.json(healthStatus);
 });
 
-// API documentation endpoint
+// CORS test endpoint
+app.get('/api/cors-test', (req, res) => {
+  res.json({
+    message: 'CORS is working correctly',
+    origin: req.get('Origin'),
+    timestamp: new Date().toISOString()
+  });
+});
+
+// API documentation endpoint - Enhanced
 app.get('/api/docs', (req, res) => {
   const apiDocs = {
     title: 'Mental Health Support Chatbot API',
     version: '1.0.0',
     description: 'API for mental health support chatbot with OpenAI integration',
+    baseUrl: `${req.protocol}://${req.get('host')}`,
     endpoints: {
       'POST /api/chat/init': {
         description: 'Initialize a new chat session',
@@ -110,6 +115,25 @@ app.get('/api/docs', (req, res) => {
           messages: 'array',
           requiresCrisisPanel: 'boolean',
           quickReplies: 'array'
+        },
+        example: {
+          request: {
+            userInfo: {
+              mood: 'anxious',
+              supportType: 'general'
+            }
+          },
+          response: {
+            sessionId: 'uuid-string',
+            messages: [{
+              id: 'msg-id',
+              text: 'Hello! How can I help you today?',
+              sender: 'bot',
+              timestamp: '2025-01-01T00:00:00.000Z'
+            }],
+            requiresCrisisPanel: false,
+            quickReplies: ['I need help', 'Tell me more']
+          }
         }
       },
       'POST /api/chat/message': {
@@ -122,6 +146,30 @@ app.get('/api/docs', (req, res) => {
           messages: 'array (user message + bot response)',
           requiresCrisisPanel: 'boolean',
           quickReplies: 'array'
+        },
+        example: {
+          request: {
+            sessionId: 'uuid-string',
+            message: 'I am feeling anxious'
+          },
+          response: {
+            messages: [
+              {
+                id: 'user-msg-id',
+                text: 'I am feeling anxious',
+                sender: 'user',
+                timestamp: '2025-01-01T00:00:00.000Z'
+              },
+              {
+                id: 'bot-msg-id',
+                text: 'I understand you\'re feeling anxious. Can you tell me more about what\'s causing this feeling?',
+                sender: 'bot',
+                timestamp: '2025-01-01T00:00:00.000Z'
+              }
+            ],
+            requiresCrisisPanel: false,
+            quickReplies: ['Work stress', 'Relationships', 'Health concerns']
+          }
         }
       },
       'GET /api/chat/:sessionId': {
@@ -138,6 +186,14 @@ app.get('/api/docs', (req, res) => {
         response: {
           resources: 'array of crisis resources'
         }
+      },
+      'GET /api/health': {
+        description: 'API health check',
+        response: {
+          status: 'string',
+          services: 'object',
+          uptime: 'number'
+        }
       }
     },
     rateLimits: {
@@ -149,7 +205,14 @@ app.get('/api/docs', (req, res) => {
       404: 'Not Found - Session not found',
       429: 'Too Many Requests - Rate limit exceeded',
       500: 'Internal Server Error - Server issues',
+      502: 'Bad Gateway - OpenAI service issues',
       503: 'Service Unavailable - OpenAI service issues'
+    },
+    cors: {
+      enabled: true,
+      origins: process.env.NODE_ENV === 'production' 
+        ? (process.env.FRONTEND_URL || 'Not configured')
+        : 'All origins (development mode)'
     }
   };
 
@@ -162,24 +225,13 @@ app.use(notFoundHandler);
 // Global error handler (must be last)
 app.use(errorHandler);
 
-// Graceful shutdown
+// Graceful shutdown handler
 const gracefulShutdown = (signal) => {
   console.log(`\nReceived ${signal}. Starting graceful shutdown...`);
   
-  const server = app.listen(PORT, () => {
-    console.log(`✅ Mental Health Support Server running on port ${PORT}`);
-    console.log(`📚 API Documentation: http://localhost:${PORT}/api/docs`);
-    console.log(`🏥 Health Check: http://localhost:${PORT}/api/health`);
-    console.log(`🤖 OpenAI Integration: ${process.env.OPENAI_API_KEY ? '✅ Configured' : '❌ Missing API Key'}`);
-    
-    if (!process.env.OPENAI_API_KEY) {
-      console.warn('⚠️  WARNING: OPENAI_API_KEY not found in environment variables');
-      console.warn('   The chatbot will use fallback responses only');
-    }
-  });
-
   server.close(() => {
     console.log('✅ HTTP server closed');
+    clearInterval(cleanupInterval);
     process.exit(0);
   });
 
@@ -196,12 +248,12 @@ process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 // Handle uncaught exceptions
 process.on('uncaughtException', (error) => {
-  console.error('Uncaught Exception:', error);
+  console.error('❌ Uncaught Exception:', error);
   process.exit(1);
 });
 
 process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
   process.exit(1);
 });
 
@@ -210,22 +262,28 @@ const cleanupInterval = setInterval(() => {
   cleanupSessions();
 }, process.env.SESSION_CLEANUP_INTERVAL || 3600000); // 1 hour default
 
-// Clear interval on shutdown
-process.on('exit', () => {
-  clearInterval(cleanupInterval);
-});
-
 // Start server
 const server = app.listen(PORT, () => {
-  console.log(`✅ Mental Health Support Server running on port ${PORT}`);
+  console.log('\n🚀 ==========================================');
+  console.log(`✅ Mental Health Support Server RUNNING`);
+  console.log(`🌐 Port: ${PORT}`);
   console.log(`📚 API Documentation: http://localhost:${PORT}/api/docs`);
   console.log(`🏥 Health Check: http://localhost:${PORT}/api/health`);
+  console.log(`🔧 CORS Test: http://localhost:${PORT}/api/cors-test`);
   console.log(`🤖 OpenAI Integration: ${process.env.OPENAI_API_KEY ? '✅ Configured' : '❌ Missing API Key'}`);
+  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🔒 CORS Origins: ${process.env.NODE_ENV === 'production' ? (process.env.FRONTEND_URL || 'Not configured') : 'All (development)'}`);
+  console.log('==========================================\n');
   
   if (!process.env.OPENAI_API_KEY) {
     console.warn('⚠️  WARNING: OPENAI_API_KEY not found in environment variables');
     console.warn('   Add your OpenAI API key to the .env file to enable AI responses');
-    console.warn('   Example: OPENAI_API_KEY=sk-your-api-key-here');
+    console.warn('   Example: OPENAI_API_KEY=sk-your-api-key-here\n');
+  }
+
+  if (process.env.NODE_ENV === 'production' && !process.env.FRONTEND_URL) {
+    console.warn('⚠️  WARNING: FRONTEND_URL not set for production');
+    console.warn('   Set FRONTEND_URL environment variable to restrict CORS origins\n');
   }
 });
 
