@@ -72,7 +72,7 @@ app.get('/api/health', (req, res) => {
     environment: process.env.NODE_ENV || 'development',
     version: '1.0.0', // Hardcoded since package.json might not exist
     services: {
-      openai: !!process.env.OPENAI_API_KEY,
+      gemini: !!process.env.GEMINI_API_KEY,
       database: 'in-memory',
       cors: 'enabled'
     },
@@ -98,7 +98,7 @@ app.get('/api/docs', (req, res) => {
   const apiDocs = {
     title: 'Mental Health Support Chatbot API',
     version: '1.0.0',
-    description: 'API for mental health support chatbot with OpenAI integration',
+    description: 'API for mental health support chatbot with Gemini AI integration',
     baseUrl: `${req.protocol}://${req.get('host')}`,
     endpoints: {
       'POST /api/chat/init': {
@@ -205,15 +205,16 @@ app.get('/api/docs', (req, res) => {
       404: 'Not Found - Session not found',
       429: 'Too Many Requests - Rate limit exceeded',
       500: 'Internal Server Error - Server issues',
-      502: 'Bad Gateway - OpenAI service issues',
-      503: 'Service Unavailable - OpenAI service issues'
+      502: 'Bad Gateway - Gemini service issues',
+      503: 'Service Unavailable - Gemini service issues'
     },
     cors: {
       enabled: true,
       origins: process.env.NODE_ENV === 'production' 
         ? (process.env.FRONTEND_URL || 'Not configured')
         : 'All origins (development mode)'
-    }
+    },
+    aiProvider: 'Google Gemini API'
   };
 
   res.json(apiDocs);
@@ -270,15 +271,15 @@ const server = app.listen(PORT, () => {
   console.log(`📚 API Documentation: http://localhost:${PORT}/api/docs`);
   console.log(`🏥 Health Check: http://localhost:${PORT}/api/health`);
   console.log(`🔧 CORS Test: http://localhost:${PORT}/api/cors-test`);
-  console.log(`🤖 OpenAI Integration: ${process.env.OPENAI_API_KEY ? '✅ Configured' : '❌ Missing API Key'}`);
+  console.log(`🤖 Gemini AI Integration: ${process.env.GEMINI_API_KEY ? '✅ Configured' : '❌ Missing API Key'}`);
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🔒 CORS Origins: ${process.env.NODE_ENV === 'production' ? (process.env.FRONTEND_URL || 'Not configured') : 'All (development)'}`);
   console.log('==========================================\n');
   
-  if (!process.env.OPENAI_API_KEY) {
-    console.warn('⚠️  WARNING: OPENAI_API_KEY not found in environment variables');
-    console.warn('   Add your OpenAI API key to the .env file to enable AI responses');
-    console.warn('   Example: OPENAI_API_KEY=sk-your-api-key-here\n');
+  if (!process.env.GEMINI_API_KEY) {
+    console.warn('⚠️  WARNING: GEMINI_API_KEY not found in environment variables');
+    console.warn('   Add your Gemini API key to the .env file to enable AI responses');
+    console.warn('   Example: GEMINI_API_KEY=your-gemini-api-key-here\n');
   }
 
   if (process.env.NODE_ENV === 'production' && !process.env.FRONTEND_URL) {

@@ -1,5 +1,5 @@
 const { v4: uuidv4 } = require('uuid');
-const { openai, OPENAI_CONFIG, MENTAL_HEALTH_SYSTEM_PROMPT } = require('../utils/openaiConfig');
+const { generateContent, GEMINI_CONFIG, MENTAL_HEALTH_SYSTEM_PROMPT } = require('../utils/geminiConfig');
 
 // In-memory storage for chat sessions (consider using Redis for production)
 const chatSessions = new Map();
@@ -30,7 +30,7 @@ const generateCrisisResponse = () => {
   };
 };
 
-// Build conversation context for OpenAI
+// Build conversation context for Gemini
 const buildConversationContext = (session, newMessage) => {
   const messages = [
     { role: 'system', content: MENTAL_HEALTH_SYSTEM_PROMPT }
@@ -68,21 +68,18 @@ const initializeChat = async (req, res) => {
       lastActivity: new Date()
     };
 
-    // Generate personalized welcome message using OpenAI
+    // Generate personalized welcome message using Gemini
     const welcomePrompt = `Generate a warm, welcoming message for a mental health support chat. ${userInfo?.name ? `The user's name is ${userInfo.name}.` : ''} ${userInfo?.mood ? `They indicated they're feeling ${userInfo.mood}.` : ''} Keep it brief, supportive, and ask how you can help today.`;
 
     try {
-      const response = await openai.chat.completions.create({
-        model: OPENAI_CONFIG.model,
-        messages: [
-          { role: 'system', content: MENTAL_HEALTH_SYSTEM_PROMPT },
-          { role: 'user', content: welcomePrompt }
-        ],
-        max_tokens: OPENAI_CONFIG.maxTokens,
-        temperature: OPENAI_CONFIG.temperature,
-      });
+      const welcomeMessages = [
+        { role: 'system', content: MENTAL_HEALTH_SYSTEM_PROMPT },
+        { role: 'user', content: welcomePrompt }
+      ];
 
-      const welcomeText = response.choices[0]?.message?.content || 
+      const response = await generateContent(welcomeMessages);
+      
+      const welcomeText = response.text || 
         `Hello${userInfo?.name ? ` ${userInfo.name}` : ''}! I'm here to support you. How can I help you today?`;
 
       const welcomeMessage = {
@@ -100,8 +97,8 @@ const initializeChat = async (req, res) => {
 
       session.messages.push(welcomeMessage);
 
-    } catch (openaiError) {
-      console.error('OpenAI error during initialization:', openaiError);
+    } catch (geminiError) {
+      console.error('Gemini error during initialization:', geminiError);
       
       // Fallback welcome message
       const fallbackMessage = {
@@ -151,7 +148,7 @@ const initializeChat = async (req, res) => {
   }
 };
 
-// Send message to OpenAI and get response
+// Send message to Gemini and get response
 const sendMessage = async (req, res) => {
   try {
     const { sessionId, message } = req.body;
@@ -205,17 +202,10 @@ const sendMessage = async (req, res) => {
     const conversationMessages = buildConversationContext(session, message);
 
     try {
-      // Call OpenAI API
-      const response = await openai.chat.completions.create({
-        model: OPENAI_CONFIG.model,
-        messages: conversationMessages,
-        max_tokens: OPENAI_CONFIG.maxTokens,
-        temperature: OPENAI_CONFIG.temperature,
-        presence_penalty: OPENAI_CONFIG.presencePresalty,
-        frequency_penalty: OPENAI_CONFIG.frequencyPenalty,
-      });
+      // Call Gemini API
+      const response = await generateContent(conversationMessages);
 
-      const botResponseText = response.choices[0]?.message?.content || 
+      const botResponseText = response.text || 
         "I'm here to listen and support you. Can you tell me more about how you're feeling?";
 
       // Generate suggested replies based on the response
@@ -238,8 +228,15 @@ const sendMessage = async (req, res) => {
         requiresCrisisPanel: false
       });
 
-    } catch (openaiError) {
-      console.error('OpenAI API error:', openaiError);
+    } catch (geminiError) {
+      console.error('Gemini API error:', geminiError);
+      
+      // Handle specific Gemini errors
+      if (geminiError.message?.includes('quota')) {
+        console.error('Gemini quota exceeded');
+      } else if (geminiError.message?.includes('rate limit')) {
+        console.error('Gemini rate limit exceeded');
+      }
       
       // Provide fallback response
       const fallbackMessage = {
