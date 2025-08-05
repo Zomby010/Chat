@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Phone, ChevronDown, X } from 'lucide-react';
+import { Send, Phone, ChevronDown, X, AlertCircle } from 'lucide-react';
 
 const MentalHealthChatbot = () => {
   const [messages, setMessages] = useState([
@@ -15,7 +15,12 @@ const MentalHealthChatbot = () => {
   const [showCrisisDropdown, setShowCrisisDropdown] = useState(false);
   const [currentMood, setCurrentMood] = useState({ emoji: '😊', label: 'Feeling Good' });
   const [encouragementMessage, setEncouragementMessage] = useState('');
+  const [error, setError] = useState(null);
   const messagesEndRef = useRef(null);
+
+  // Backend configuration
+  const BACKEND_URL = 'http://localhost:5000';
+  const CHAT_ENDPOINT = '/api/chat';
 
   // Encouragement messages
   const encouragementMessages = [
@@ -46,6 +51,29 @@ const MentalHealthChatbot = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
+  // Function to send message to backend
+  const sendMessageToBackend = async (message) => {
+    try {
+      const response = await fetch(`${BACKEND_URL}${CHAT_ENDPOINT}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ message }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data.message || data.response || 'I hear you. Can you tell me more about what\'s on your mind?';
+    } catch (error) {
+      console.error('Error communicating with backend:', error);
+      throw error;
+    }
+  };
+
   const handleSendMessage = async () => {
     if (!inputMessage.trim() || isLoading) return;
 
@@ -57,63 +85,39 @@ const MentalHealthChatbot = () => {
     };
 
     setMessages(prev => [...prev, userMessage]);
+    const currentInput = inputMessage.trim();
     setInputMessage('');
     setIsLoading(true);
+    setError(null);
 
-    // Simulate bot response (replace with actual AI integration)
-    setTimeout(() => {
+    try {
+      // Send message to backend
+      const botResponseContent = await sendMessageToBackend(currentInput);
+      
       const botResponse = {
         id: messages.length + 2,
         type: 'bot',
-        content: generateBotResponse(inputMessage),
+        content: botResponseContent,
         timestamp: new Date()
       };
+      
       setMessages(prev => [...prev, botResponse]);
+    } catch (error) {
+      // Handle backend error
+      setError('Unable to connect to the support system. Please try again.');
+      
+      // Fallback to local response
+      const fallbackResponse = {
+        id: messages.length + 2,
+        type: 'bot',
+        content: "I apologize, but I'm having trouble connecting right now. Your mental health is important - if you're in crisis, please reach out to the crisis resources above or contact emergency services.",
+        timestamp: new Date()
+      };
+      
+      setMessages(prev => [...prev, fallbackResponse]);
+    } finally {
       setIsLoading(false);
-    }, 1000);
-  };
-
-  const generateBotResponse = (userInput) => {
-    // Simple response logic - replace with actual AI integration
-   const responses = [
-  "I hear you. It takes courage to share your feelings. Can you tell me more about what's on your mind?",
-  "Thank you for opening up. Your feelings are completely valid. What would help you feel more supported right now?",
-  "That sounds really difficult. Remember, it's okay to feel this way. Have you been able to talk to anyone else about this?",
-  "I'm glad you're reaching out. Taking care of your mental health is so important. What's one small thing that usually makes you feel a little better?",
-  "Your strength in reaching out shows how much you care about yourself. What would you like to focus on in our conversation today?",
-  "I can tell this is really weighing on you. Would it help to talk through what's been on your mind lately?",
-  "You're doing the right thing by reaching out. Let's take a moment to breathe together—would that feel supportive right now?",
-  "That sounds like a lot to handle. Have you noticed any small moments of relief, even briefly?",
-  "Your feelings make so much sense given what you're going through. What do you wish others understood about this?",
-  "It's okay to not have all the answers. Would it help to explore this step by step?",
-  "I'm here to listen without judgment. What's one thing you'd like to feel differently about this situation?",
-  "You're not alone in this. Many people find it helpful to name their emotions—how would you describe yours?",
-  "It takes strength to acknowledge these feelings. What's something that's helped you cope in the past?",
-  "I hear how difficult this is for you. What would support look like for you today?",
-  "This sounds deeply painful. Would you like to focus on problem-solving, or just feel heard for now?",
-  "Your honesty is so important. Let's slow down—what's coming up for you as we talk about this?",
-  "I'm glad you're sharing this with me. What's one thing that usually brings you comfort, even a little?",
-  "That sounds exhausting to carry. How can I help you feel grounded in this moment?",
-  "You deserve kindness right now. Is there a part of this that feels easier to talk about first?",
-  "I can sense how much this matters to you. What's a small step that might ease the pressure?",
-  "It's okay to feel this way. Have you found anything that helps when things feel this heavy?",
-  "Thank you for trusting me with this. What would make this conversation feel most helpful for you?",
-  "I'm holding space for you. Would it help to pause and take three deep breaths together?",
-  "This sounds like it's been really hard. What's something you'd tell a friend going through the same thing?",
-  "You're not failing—you're feeling. What do you need most from me right now?",
-  "I hear how much this is affecting you. What's one thing you'd like to feel differently by the end of our chat?",
-  "Your emotions are valid, even if they're complicated. Would it help to talk about what's underneath this?",
-  "It's brave to sit with these feelings. What's a tiny act of self-care you could try today?",
-  "I'm here to walk through this with you. What's on your mind in this very moment?",
-  "That sounds overwhelming. Let's break it down—what's one part of this you'd like to focus on?",
-  "You're allowed to feel this way. What's something kind you could do for yourself right now?",
-  "I'm listening closely. What's a word or image that captures how you're feeling?",
-  "This matters. Would it help to imagine what relief might look like, even just a little?",
-  "You're not broken—you're responding to real challenges. What's one thing that usually helps you recharge?",
-  "Let's honor what you're feeling. What's a next step that feels manageable today?",
-  "I'm with you in this. What's something you'd like to remind yourself of right now?"
-];
-    return responses[Math.floor(Math.random() * responses.length)];
+    }
   };
 
   const formatTime = (timestamp) => {
@@ -128,6 +132,10 @@ const MentalHealthChatbot = () => {
       e.preventDefault();
       handleSendMessage();
     }
+  };
+
+  const dismissError = () => {
+    setError(null);
   };
 
   return (
@@ -301,6 +309,35 @@ const MentalHealthChatbot = () => {
           </p>
         </div>
 
+        {/* Error Message */}
+        {error && (
+          <div style={{
+            background: '#fee',
+            padding: '12px 20px',
+            borderBottom: '1px solid #fcc',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            color: '#d32f2f'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <AlertCircle size={16} />
+              <span style={{ fontSize: '14px' }}>{error}</span>
+            </div>
+            <button
+              onClick={dismissError}
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                color: '#d32f2f'
+              }}
+            >
+              <X size={16} />
+            </button>
+          </div>
+        )}
+
         {/* Messages Container */}
         <div style={{
           flex: 1,
@@ -369,7 +406,7 @@ const MentalHealthChatbot = () => {
                   fontSize: '14px',
                   opacity: 0.7
                 }}>
-                  Typing...
+                  Bot is typing...
                 </p>
               </div>
             </div>
