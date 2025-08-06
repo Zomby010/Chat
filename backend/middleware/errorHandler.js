@@ -11,57 +11,54 @@ const errorHandler = (err, req, res, next) => {
     ip: req.ip
   });
 
-  // Gemini API specific errors
-  if (err.message?.includes('quota') || err.code === 'QUOTA_EXCEEDED') {
-    return res.status(503).json({
-      error: 'Service temporarily unavailable',
-      message: 'Our AI service is currently at capacity. Please try again in a few minutes.',
-      code: 'QUOTA_EXCEEDED',
-      retryAfter: 300 // 5 minutes
-    });
-  }
+  // OpenAI API specific errors
+  if (err.type === 'openai_error') {
+    switch (err.code) {
+      case 'insufficient_quota':
+        return res.status(503).json({
+          error: 'Service temporarily unavailable',
+          message: 'Our AI service is currently at capacity. Please try again in a few minutes.',
+          code: 'QUOTA_EXCEEDED',
+          retryAfter: 300 // 5 minutes
+        });
 
-  if (err.message?.includes('rate limit') || err.code === 'RATE_LIMITED') {
-    return res.status(429).json({
-      error: 'Too many requests',
-      message: 'Please wait a moment before sending another message.',
-      code: 'RATE_LIMITED',
-      retryAfter: 60 // 1 minute
-    });
-  }
+      case 'rate_limit_exceeded':
+        return res.status(429).json({
+          error: 'Too many requests',
+          message: 'Please wait a moment before sending another message.',
+          code: 'RATE_LIMITED',
+          retryAfter: 60 // 1 minute
+        });
 
-  if (err.message?.includes('API key') || err.code === 'INVALID_API_KEY') {
-    return res.status(503).json({
-      error: 'Service configuration error',
-      message: 'There\'s a temporary issue with our service. Please try again later.',
-      code: 'CONFIG_ERROR'
-    });
-  }
+      case 'invalid_api_key':
+        return res.status(503).json({
+          error: 'Service configuration error',
+          message: 'There\'s a temporary issue with our service. Please try again later.',
+          code: 'CONFIG_ERROR'
+        });
 
-  if (err.message?.includes('overloaded') || err.code === 'SERVICE_OVERLOADED') {
-    return res.status(503).json({
-      error: 'Service overloaded',
-      message: 'Our AI service is experiencing high demand. Please try again in a moment.',
-      code: 'SERVICE_OVERLOADED',
-      retryAfter: 120 // 2 minutes
-    });
-  }
+      case 'model_overloaded':
+        return res.status(503).json({
+          error: 'Service overloaded',
+          message: 'Our AI service is experiencing high demand. Please try again in a moment.',
+          code: 'SERVICE_OVERLOADED',
+          retryAfter: 120 // 2 minutes
+        });
 
-  if (err.message?.includes('context') || err.message?.includes('token') || err.code === 'CONTEXT_TOO_LONG') {
-    return res.status(400).json({
-      error: 'Conversation too long',
-      message: 'This conversation has become too long. Please start a new session.',
-      code: 'CONTEXT_TOO_LONG'
-    });
-  }
+      case 'context_length_exceeded':
+        return res.status(400).json({
+          error: 'Conversation too long',
+          message: 'This conversation has become too long. Please start a new session.',
+          code: 'CONTEXT_TOO_LONG'
+        });
 
-  // Generic Gemini/AI service errors
-  if (err.message?.includes('GoogleGenerativeAI') || err.code === 'AI_SERVICE_ERROR') {
-    return res.status(502).json({
-      error: 'AI service error',
-      message: 'There was an issue with our AI service. Please try again.',
-      code: 'AI_SERVICE_ERROR'
-    });
+      default:
+        return res.status(502).json({
+          error: 'AI service error',
+          message: 'There was an issue with our AI service. Please try again.',
+          code: 'AI_SERVICE_ERROR'
+        });
+    }
   }
 
   // Validation errors

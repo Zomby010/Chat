@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   MessageCircle, 
@@ -9,7 +9,11 @@ import {
   X,
   User,
   UserCheck,
-  ExternalLink
+  ExternalLink,
+  Volume2,
+  VolumeX,
+  Play,
+  Pause
 } from 'lucide-react';
 import './WelcomeScreen.css';
 
@@ -21,7 +25,16 @@ const WelcomeScreen = () => {
   const [isBreathing, setIsBreathing] = useState(false);
   const [breathingPhase, setBreathingPhase] = useState('ready');
   const [breathingCount, setBreathingCount] = useState(0);
+  const [breathingProgress, setBreathingProgress] = useState(0);
   const [encouragementMessage, setEncouragementMessage] = useState('');
+  const [soundEnabled, setSoundEnabled] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+
+  // Refs for breathing control
+  const breathingIntervalRef = useRef(null);
+  const breathingTimeoutRef = useRef(null);
+  const audioContextRef = useRef(null);
+  const oscillatorRef = useRef(null);
 
   // Encouragement messages that change on each render
   const encouragementMessages = [
@@ -57,66 +70,220 @@ const WelcomeScreen = () => {
     { emoji: '😍', label: 'Amazing', value: 10 }
   ];
 
+  // Enhanced breathing timing configuration
+  const breathingConfig = {
+    inhaleTime: 4000,    // 4 seconds inhale
+    holdTime: 2000,      // 2 seconds hold
+    exhaleTime: 6000,    // 6 seconds exhale
+    totalCycles: 3,      // 3 cycles for 30 seconds total
+    progressUpdateInterval: 50 // Update progress every 50ms for smooth animation
+  };
+
+  // Ambient sound generation for breathing
+  const createAmbientSound = useCallback(() => {
+    if (!soundEnabled) return;
+    
+    try {
+      if (!audioContextRef.current) {
+        audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      
+      const audioContext = audioContextRef.current;
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      // Create calming frequency based on breathing phase
+      const getFrequency = (phase) => {
+        switch (phase) {
+          case 'inhale': return 220; // A3 note
+          case 'hold': return 261.63; // C4 note
+          case 'exhale': return 196; // G3 note
+          default: return 220;
+        }
+      };
+      
+      oscillator.frequency.setValueAtTime(getFrequency(breathingPhase), audioContext.currentTime);
+      oscillator.type = 'sine';
+      gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+      
+      oscillator.start();
+      oscillatorRef.current = oscillator;
+      
+      // Fade out after phase
+      const phaseDuration = breathingPhase === 'inhale' ? breathingConfig.inhaleTime :
+                           breathingPhase === 'hold' ? breathingConfig.holdTime :
+                           breathingConfig.exhaleTime;
+      
+      setTimeout(() => {
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+        setTimeout(() => oscillator.stop(), 500);
+      }, phaseDuration - 500);
+      
+    } catch (error) {
+      console.log('Audio context not supported');
+    }
+  }, [soundEnabled, breathingPhase]);
+
+  // Enhanced breathing exercise with smooth progress tracking
+  const handleBreathingExercise = useCallback(() => {
+    if (isBreathing && !isPaused) {
+      // Pause breathing
+      setIsPaused(true);
+      if (breathingIntervalRef.current) clearInterval(breathingIntervalRef.current);
+      if (breathingTimeoutRef.current) clearTimeout(breathingTimeoutRef.current);
+      return;
+    }
+
+    if (isPaused) {
+      // Resume breathing
+      setIsPaused(false);
+      continueBreathing();
+      return;
+    }
+
+    // Start new breathing session
+    setIsBreathing(true);
+    setIsPaused(false);
+    setBreathingPhase('inhale');
+    setBreathingCount(0);
+    setBreathingProgress(0);
+    startBreathingCycle();
+  }, [isBreathing, isPaused]);
+
+  const startBreathingCycle = useCallback(() => {
+    let currentCycle = 0;
+    let currentPhaseProgress = 0;
+    let currentPhase = 'inhale';
+
+    const updateProgress = () => {
+      const progressInterval = setInterval(() => {
+        if (isPaused) return;
+
+        currentPhaseProgress += breathingConfig.progressUpdateInterval;
+        
+        const getPhaseMaxTime = (phase) => {
+          switch (phase) {
+            case 'inhale': return breathingConfig.inhaleTime;
+            case 'hold': return breathingConfig.holdTime;
+            case 'exhale': return breathingConfig.exhaleTime;
+            default: return 0;
+          }
+        };
+
+        const phaseMaxTime = getPhaseMaxTime(currentPhase);
+        const phaseProgressPercent = Math.min((currentPhaseProgress / phaseMaxTime) * 100, 100);
+        
+        // Calculate overall progress
+        const cycleProgress = currentCycle / breathingConfig.totalCycles;
+        const phaseWeight = 1 / 3; // Each phase is 1/3 of a cycle
+        const currentPhaseWeight = currentPhase === 'inhale' ? 0 : 
+                                  currentPhase === 'hold' ? phaseWeight : 
+                                  phaseWeight * 2;
+        
+        const totalProgress = ((cycleProgress + (currentPhaseWeight + (phaseProgressPercent / 100) * phaseWeight)) * 100);
+        setBreathingProgress(Math.min(totalProgress, 100));
+
+        if (currentPhaseProgress >= phaseMaxTime) {
+          currentPhaseProgress = 0;
+          
+          if (currentPhase === 'inhale') {
+            currentPhase = 'hold';
+            setBreathingPhase('hold');
+          } else if (currentPhase === 'hold') {
+            currentPhase = 'exhale';
+            setBreathingPhase('exhale');
+          } else if (currentPhase === 'exhale') {
+            currentCycle++;
+            setBreathingCount(currentCycle);
+            
+            if (currentCycle >= breathingConfig.totalCycles) {
+              clearInterval(progressInterval);
+              completeBreathingSession();
+              return;
+            }
+            
+            currentPhase = 'inhale';
+            setBreathingPhase('inhale');
+          }
+        }
+      }, breathingConfig.progressUpdateInterval);
+
+      breathingIntervalRef.current = progressInterval;
+    };
+
+    updateProgress();
+  }, [isPaused]);
+
+  const continueBreathing = useCallback(() => {
+    // Resume from current state
+    startBreathingCycle();
+  }, [startBreathingCycle]);
+
+  const completeBreathingSession = useCallback(() => {
+    setIsBreathing(false);
+    setIsPaused(false);
+    setBreathingPhase('complete');
+    setBreathingProgress(100);
+    
+    // Show completion message briefly
+    setTimeout(() => {
+      setBreathingPhase('ready');
+      setBreathingProgress(0);
+      setBreathingCount(0);
+    }, 2000);
+  }, []);
+
+  // Cleanup intervals on unmount
+  useEffect(() => {
+    return () => {
+      if (breathingIntervalRef.current) clearInterval(breathingIntervalRef.current);
+      if (breathingTimeoutRef.current) clearTimeout(breathingTimeoutRef.current);
+      if (oscillatorRef.current) {
+        try {
+          oscillatorRef.current.stop();
+        } catch (e) {
+          // Oscillator might already be stopped
+        }
+      }
+    };
+  }, []);
+
+  // Create ambient sound when phase changes
+  useEffect(() => {
+    if (isBreathing && !isPaused && soundEnabled) {
+      createAmbientSound();
+    }
+  }, [breathingPhase, isBreathing, isPaused, createAmbientSound, soundEnabled]);
+
   const handleStartChat = () => {
     navigate('/chat');
   };
 
   const handleMoodSelect = (mood) => {
     setSelectedMood(mood);
-    // You can save this mood data to your state management or API
     console.log('Selected mood:', mood);
     setShowMoodModal(false);
   };
 
-  const handleBreathingExercise = () => {
-    if (isBreathing) return;
-    
-    setIsBreathing(true);
-    setBreathingPhase('inhale');
-    setBreathingCount(0);
-    
-    const breathingCycle = () => {
-      let count = 0;
-      const totalCycles = 5; // 30 seconds / 6 seconds per cycle = 5 cycles
-      
-      const cycle = () => {
-        if (count >= totalCycles) {
-          setIsBreathing(false);
-          setBreathingPhase('ready');
-          setBreathingCount(0);
-          return;
-        }
-        
-        // Inhale phase (4 seconds)
-        setBreathingPhase('inhale');
-        setTimeout(() => {
-          // Hold phase (2 seconds)
-          setBreathingPhase('hold');
-          setTimeout(() => {
-            // Exhale phase (4 seconds)
-            setBreathingPhase('exhale');
-            setTimeout(() => {
-              count++;
-              setBreathingCount(count);
-              cycle();
-            }, 4000);
-          }, 2000);
-        }, 4000);
-      };
-      
-      cycle();
-    };
-    
-    breathingCycle();
-  };
-
   const getBreathingText = () => {
+    if (isPaused) return 'Paused - Tap to Resume';
+    
     switch (breathingPhase) {
       case 'inhale': return 'Breathe In...';
       case 'hold': return 'Hold...';
       case 'exhale': return 'Breathe Out...';
-      default: return 'Tap to Breathe';
+      case 'complete': return 'Well Done! 🌟';
+      default: return 'Start Breathing Guide';
     }
+  };
+
+  const getBreathingIcon = () => {
+    if (!isBreathing) return <Play size={16} />;
+    if (isPaused) return <Play size={16} />;
+    return <Pause size={16} />;
   };
 
   return (
@@ -199,22 +366,75 @@ const WelcomeScreen = () => {
             </div>
           </section>
 
-          {/* Breathing Exercise */}
+          {/* Enhanced Breathing Exercise */}
           <section className="feature-card breathing-exercise">
-            <h3>Breathing Guide</h3>
+            <h3>Guided Breathing</h3>
             <div className="breathing-container">
-              <button 
-                className={`breathing-circle ${breathingPhase}`}
-                onClick={handleBreathingExercise}
-                disabled={isBreathing}
-              >
-                <span className="breathing-text">{getBreathingText()}</span>
-                {isBreathing && (
-                  <div className="breathing-progress">
-                    {breathingCount}/5
+              {/* Sound Toggle */}
+              <div className="breathing-controls">
+                <button 
+                  className={`sound-toggle ${soundEnabled ? 'enabled' : ''}`}
+                  onClick={() => setSoundEnabled(!soundEnabled)}
+                  title={soundEnabled ? 'Disable ambient sounds' : 'Enable ambient sounds'}
+                >
+                  {soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
+                </button>
+              </div>
+              
+              {/* Breathing Circle */}
+              <div className="breathing-circle-container">
+                <button 
+                  className={`breathing-circle ${breathingPhase} ${isBreathing ? 'active' : ''}`}
+                  onClick={handleBreathingExercise}
+                  style={{
+                    '--breathing-progress': `${breathingProgress}%`
+                  }}
+                >
+                  <div className="breathing-content">
+                    {getBreathingIcon()}
+                    <span className="breathing-text">{getBreathingText()}</span>
+                    
+                    {/* Progress Ring */}
+                    {isBreathing && (
+                      <svg className="progress-ring" viewBox="0 0 100 100">
+                        <circle
+                          className="progress-ring-background"
+                          cx="50"
+                          cy="50"
+                          r="45"
+                        />
+                        <circle
+                          className="progress-ring-progress"
+                          cx="50"
+                          cy="50"
+                          r="45"
+                          style={{
+                            strokeDasharray: `${2 * Math.PI * 45}`,
+                            strokeDashoffset: `${2 * Math.PI * 45 * (1 - breathingProgress / 100)}`
+                          }}
+                        />
+                      </svg>
+                    )}
                   </div>
-                )}
-              </button>
+                  
+                  {/* Breathing Instructions */}
+                  {isBreathing && (
+                    <div className="breathing-instructions">
+                      <div className="cycle-counter">
+                        Cycle {breathingCount + 1} of {breathingConfig.totalCycles}
+                      </div>
+                    </div>
+                  )}
+                </button>
+              </div>
+
+              {/* Breathing Session Info */}
+              <div className="breathing-info">
+                <p className="breathing-description">
+                  30-second guided breathing session
+                  {soundEnabled && <span className="sound-indicator">🎵</span>}
+                </p>
+              </div>
             </div>
           </section>
         </div>

@@ -101,7 +101,7 @@ const createRateLimiter = () => {
 
 const rateLimiter = createRateLimiter();
 
-// Chat Routes - IMPORTANT: Order matters! Specific routes before parameterized ones
+// Chat Routes
 
 /**
  * POST /api/chat/init
@@ -118,17 +118,19 @@ router.post('/init', rateLimiter, validateChatInit, initializeChat);
 router.post('/message', rateLimiter, validateMessage, sendMessage);
 
 /**
- * GET /api/chat/crisis/resources
+ * GET /api/chat/:sessionId
+ * Get chat history for a session
+ * Params: { sessionId: string }
+ */
+router.get('/:sessionId', validateSessionId, getChatHistory);
+
+/**
+ * GET /api/chat/crisis-resources
  * Get crisis support resources
- * IMPORTANT: This must come BEFORE /:sessionId route
  */
 router.get('/crisis/resources', getCrisisResources);
 
-/**
- * GET /api/chat/health
- * Health check for chat service
- * IMPORTANT: This must come BEFORE /:sessionId route
- */
+// Health check for chat service
 router.get('/health', (req, res) => {
   const { chatSessions } = require('../controllers/chatController');
   
@@ -141,15 +143,7 @@ router.get('/health', (req, res) => {
   });
 });
 
-/**
- * GET /api/chat/:sessionId
- * Get chat history for a session
- * Params: { sessionId: string }
- * IMPORTANT: This parameterized route must come AFTER specific routes
- */
-router.get('/:sessionId', validateSessionId, getChatHistory);
-
-// Error handling middleware for chat routes
+// Error handling for chat routes
 router.use((error, req, res, next) => {
   console.error('Chat route error:', error);
   

@@ -1,5 +1,5 @@
 const { v4: uuidv4 } = require('uuid');
-const { generateContent, GEMINI_CONFIG, MENTAL_HEALTH_SYSTEM_PROMPT } = require('../utils/geminiConfig');
+const { openai, OPENAI_CONFIG, MENTAL_HEALTH_SYSTEM_PROMPT } = require('../utils/openaiConfig');
 
 // In-memory storage for chat sessions (consider using Redis for production)
 const chatSessions = new Map();
@@ -7,7 +7,8 @@ const chatSessions = new Map();
 // Crisis keywords for additional safety checks
 const CRISIS_KEYWORDS = [
   'suicide', 'kill myself', 'end it all', 'not worth living', 
-  'harm myself', 'want to die', 'better off dead', 'end my life'
+  'harm myself', 'want to die', 'better off dead', 'end my life',
+  'take my life', 'no point living', 'can\'t go on', 'want to disappear'
 ];
 
 // Check for crisis indicators
@@ -25,12 +26,13 @@ const generateCrisisResponse = () => {
     suggestedReplies: [
       "I want to talk to someone now",
       "Tell me more about these resources",
-      "I'm feeling a bit better now"
+      "I'm feeling a bit better now",
+      "I need more help"
     ]
   };
 };
 
-// Build conversation context for Gemini
+// Build conversation context for OpenAI
 const buildConversationContext = (session, newMessage) => {
   const messages = [
     { role: 'system', content: MENTAL_HEALTH_SYSTEM_PROMPT }
@@ -56,6 +58,8 @@ const buildConversationContext = (session, newMessage) => {
 // Initialize chat session
 const initializeChat = async (req, res) => {
   try {
+    console.log('🚀 Initializing chat session...', req.body);
+    
     const { userInfo } = req.body;
     const sessionId = uuidv4();
 
@@ -68,21 +72,28 @@ const initializeChat = async (req, res) => {
       lastActivity: new Date()
     };
 
-    // Generate personalized welcome message using Gemini
+    // Generate personalized welcome message using OpenAI
     const welcomePrompt = `Generate a warm, welcoming message for a mental health support chat. ${userInfo?.name ? `The user's name is ${userInfo.name}.` : ''} ${userInfo?.mood ? `They indicated they're feeling ${userInfo.mood}.` : ''} Keep it brief, supportive, and ask how you can help today.`;
 
-    try {
-      const welcomeMessages = [
-        { role: 'system', content: MENTAL_HEALTH_SYSTEM_PROMPT },
-        { role: 'user', content: welcomePrompt }
-      ];
+    let welcomeMessage;
 
-      const response = await generateContent(welcomeMessages);
+    try {
+      console.log('🤖 Calling OpenAI for welcome message...');
       
-      const welcomeText = response.text || 
+      const response = await openai.chat.completions.create({
+        model: OPENAI_CONFIG.model,
+        messages: [
+          { role: 'system', content: MENTAL_HEALTH_SYSTEM_PROMPT },
+          { role: 'user', content: welcomePrompt }
+        ],
+        max_tokens: OPENAI_CONFIG.maxTokens,
+        temperature: OPENAI_CONFIG.temperature,
+      });
+
+      const welcomeText = response.choices[0]?.message?.content || 
         `Hello${userInfo?.name ? ` ${userInfo.name}` : ''}! I'm here to support you. How can I help you today?`;
 
-      const welcomeMessage = {
+      welcomeMessage = {
         id: uuidv4(),
         text: welcomeText,
         sender: 'bot',
@@ -95,13 +106,25 @@ const initializeChat = async (req, res) => {
         ]
       };
 
-      session.messages.push(welcomeMessage);
+      console.log('✅ OpenAI welcome message generated successfully');
 
-    } catch (geminiError) {
-      console.error('Gemini error during initialization:', geminiError);
+    } catch (openaiError) {
+      console.error('❌ OpenAI error during initialization:', openaiError);
+      
+      // Provide detailed error info but still create fallback
+      let errorMessage = 'OpenAI service temporarily unavailable';
+      if (openaiError.code === 'insufficient_quota') {
+        errorMessage = 'OpenAI quota exceeded';
+      } else if (openaiError.code === 'rate_limit_exceeded') {
+        errorMessage = 'OpenAI rate limit exceeded';
+      } else if (openaiError.code === 'invalid_api_key') {
+        errorMessage = 'OpenAI API key invalid';
+      }
+      
+      console.log(`🔄 Using fallback welcome message due to: ${errorMessage}`);
       
       // Fallback welcome message
-      const fallbackMessage = {
+      welcomeMessage = {
         id: uuidv4(),
         text: `Hello${userInfo?.name ? ` ${userInfo.name}` : ''}! I'm here to support you. How can I help you today?`,
         sender: 'bot',
@@ -113,8 +136,9 @@ const initializeChat = async (req, res) => {
           "I'm having trouble sleeping"
         ]
       };
-      session.messages.push(fallbackMessage);
     }
+
+    session.messages.push(welcomeMessage);
 
     // Handle crisis support type
     let requiresCrisisPanel = false;
@@ -132,28 +156,37 @@ const initializeChat = async (req, res) => {
 
     chatSessions.set(sessionId, session);
 
-    res.json({
+    const response = {
       sessionId,
       messages: session.messages,
       requiresCrisisPanel,
       quickReplies: session.messages[session.messages.length - 1]?.suggestedReplies || []
-    });
+    };
+
+    console.log('✅ Chat session initialized successfully:', sessionId);
+    console.log('📤 Sending response:', JSON.stringify(response, null, 2));
+
+    res.json(response);
 
   } catch (error) {
-    console.error('Error initializing chat:', error);
+    console.error('❌ Error initializing chat:', error);
     res.status(500).json({ 
       error: 'Failed to initialize chat session',
-      message: 'Please try again in a moment.'
+      message: 'Please try again in a moment.',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 };
 
-// Send message to Gemini and get response
+// Send message to OpenAI and get response
 const sendMessage = async (req, res) => {
   try {
+    console.log('💬 Processing message...', req.body);
+    
     const { sessionId, message } = req.body;
 
     if (!sessionId || !message) {
+      console.log('❌ Missing required fields:', { sessionId: !!sessionId, message: !!message });
       return res.status(400).json({ 
         error: 'Session ID and message are required' 
       });
@@ -161,10 +194,13 @@ const sendMessage = async (req, res) => {
 
     const session = chatSessions.get(sessionId);
     if (!session) {
+      console.log('❌ Session not found:', sessionId);
       return res.status(404).json({ 
         error: 'Chat session not found. Please start a new session.' 
       });
     }
+
+    console.log('📝 Session found, processing message...');
 
     // Add user message to session
     const userMessage = {
@@ -178,6 +214,7 @@ const sendMessage = async (req, res) => {
     // Check for crisis indicators
     const isCrisis = detectCrisis(message);
     if (isCrisis) {
+      console.log('🚨 Crisis detected in message');
       const crisisResponse = generateCrisisResponse();
       const botMessage = {
         id: uuidv4(),
@@ -191,22 +228,36 @@ const sendMessage = async (req, res) => {
       session.messages.push(botMessage);
       session.lastActivity = new Date();
 
-      return res.json({
+      const response = {
         messages: [userMessage, botMessage],
         requiresCrisisPanel: true,
         quickReplies: crisisResponse.suggestedReplies
-      });
+      };
+
+      console.log('🚨 Crisis response sent');
+      return res.json(response);
     }
 
     // Build conversation context
     const conversationMessages = buildConversationContext(session, message);
 
     try {
-      // Call Gemini API
-      const response = await generateContent(conversationMessages);
+      console.log('🤖 Calling OpenAI for response...');
+      
+      // Call OpenAI API
+      const response = await openai.chat.completions.create({
+        model: OPENAI_CONFIG.model,
+        messages: conversationMessages,
+        max_tokens: OPENAI_CONFIG.maxTokens,
+        temperature: OPENAI_CONFIG.temperature,
+        presence_penalty: OPENAI_CONFIG.presencePenalty,
+        frequency_penalty: OPENAI_CONFIG.frequencyPenalty,
+      });
 
-      const botResponseText = response.text || 
+      const botResponseText = response.choices[0]?.message?.content || 
         "I'm here to listen and support you. Can you tell me more about how you're feeling?";
+
+      console.log('✅ OpenAI response received');
 
       // Generate suggested replies based on the response
       const suggestedReplies = generateSuggestedReplies(botResponseText, message);
@@ -222,51 +273,72 @@ const sendMessage = async (req, res) => {
       session.messages.push(botMessage);
       session.lastActivity = new Date();
 
-      res.json({
+      const finalResponse = {
         messages: [userMessage, botMessage],
         quickReplies: suggestedReplies,
         requiresCrisisPanel: false
-      });
+      };
 
-    } catch (geminiError) {
-      console.error('Gemini API error:', geminiError);
+      console.log('✅ Message processed successfully');
+      res.json(finalResponse);
+
+    } catch (openaiError) {
+      console.error('❌ OpenAI API error:', openaiError);
       
-      // Handle specific Gemini errors
-      if (geminiError.message?.includes('quota')) {
-        console.error('Gemini quota exceeded');
-      } else if (geminiError.message?.includes('rate limit')) {
-        console.error('Gemini rate limit exceeded');
+      // Provide more detailed error handling
+      let errorMessage = "I'm experiencing some technical difficulties right now, but I'm still here to support you. Can you tell me more about what's on your mind?";
+      let suggestedReplies = [
+        "I need someone to listen",
+        "I'm feeling overwhelmed", 
+        "Can you help me calm down?",
+        "Let's try again"
+      ];
+
+      if (openaiError.code === 'insufficient_quota') {
+        errorMessage = "I'm temporarily unable to provide AI responses due to service limits, but I'm still here for you. Please know that your feelings are valid and you're not alone.";
+        suggestedReplies = [
+          "I understand",
+          "I need crisis resources",
+          "Can you still help?",
+          "What should I do?"
+        ];
+      } else if (openaiError.code === 'rate_limit_exceeded') {
+        errorMessage = "I need a moment to process your message. Please try again in a few seconds. In the meantime, know that I'm here to support you.";
+        suggestedReplies = [
+          "I'll wait",
+          "Try again",
+          "I need immediate help",
+          "Tell me more"
+        ];
       }
       
-      // Provide fallback response
       const fallbackMessage = {
         id: uuidv4(),
-        text: "I'm experiencing some technical difficulties right now, but I'm still here to support you. Can you tell me more about what's on your mind?",
+        text: errorMessage,
         sender: 'bot',
         timestamp: new Date().toISOString(),
-        suggestedReplies: [
-          "I need someone to listen",
-          "I'm feeling overwhelmed", 
-          "Can you help me calm down?",
-          "Let's try again"
-        ]
+        suggestedReplies
       };
 
       session.messages.push(fallbackMessage);
       session.lastActivity = new Date();
 
-      res.json({
+      const fallbackResponse = {
         messages: [userMessage, fallbackMessage],
-        quickReplies: fallbackMessage.suggestedReplies,
+        quickReplies: suggestedReplies,
         requiresCrisisPanel: false
-      });
+      };
+
+      console.log('🔄 Fallback response sent due to OpenAI error');
+      res.json(fallbackResponse);
     }
 
   } catch (error) {
-    console.error('Error processing message:', error);
+    console.error('❌ Error processing message:', error);
     res.status(500).json({ 
       error: 'Failed to process message',
-      message: 'Please try sending your message again.'
+      message: 'Please try sending your message again.',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 };
@@ -310,6 +382,15 @@ const generateSuggestedReplies = (botResponse, userMessage) => {
       "I'm not sure if I need professional help",
       "What should I expect in therapy?",
       "I'm ready to seek help"
+    ];
+  }
+
+  if (lowerBotResponse.includes('crisis') || lowerBotResponse.includes('emergency')) {
+    return [
+      "I need immediate help",
+      "Tell me about crisis resources",
+      "I'm feeling better now",
+      "Can someone talk to me?"
     ];
   }
 
@@ -406,7 +487,7 @@ const cleanupSessions = () => {
   for (const [sessionId, session] of chatSessions.entries()) {
     if (session.lastActivity < oneHourAgo) {
       chatSessions.delete(sessionId);
-      console.log(`Cleaned up inactive session: ${sessionId}`);
+      console.log(`🧹 Cleaned up inactive session: ${sessionId}`);
     }
   }
 };
