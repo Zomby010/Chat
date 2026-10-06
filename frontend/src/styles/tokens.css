@@ -1,0 +1,214 @@
+/* ==========================================================================
+   MindMate design tokens
+   One source of truth for colour, type, spacing, radius, shadow and motion.
+   Components only ever reference these variables.
+
+   Palette rationale
+   - Deep teal (primary): calm, trustworthy, clinical-adjacent without being cold.
+   - Warm linen backgrounds: softer than pure white, avoids a "hospital" feel.
+   - Terracotta (accent) and sunlight (highlight): warmth and hope, used sparingly.
+   - Mood colours run dusk-blue → sage → sunlight, never red → green, so a
+     low mood is never coded as "bad" or "error".
+
+   Breakpoints (used in media queries; CSS variables cannot be used there):
+     sm 480px · md 768px · lg 1024px · xl 1280px
+   ========================================================================== */
+
+:root {
+  color-scheme: light;
+
+  /* Brand */
+  --color-primary: #23675f;
+  --color-primary-hover: #1c564f;
+  --color-primary-strong: #164540;
+  --color-primary-soft: #ddede9;
+  --color-on-primary: #ffffff;
+
+  --color-accent: #c8644a;
+  --color-accent-soft: #fbe7df;
+  --color-highlight: #f2c76e;
+  --color-highlight-soft: #fdf3dc;
+  --color-sage: #8fb09a;
+  --color-sage-soft: #e7efe8;
+
+  /* Neutrals */
+  --color-bg: #f7f4ee;
+  --color-surface: #ffffff;
+  --color-surface-2: #f1ece3;
+  --color-surface-3: #e9e2d6;
+  --color-border: #e1d9cc;
+  --color-border-strong: #c9bfae;
+  --color-text: #1d2b2a;
+  --color-text-muted: #556361;
+  --color-text-subtle: #66726f;
+
+  /* Feedback */
+  --color-success: #2b7a4b;
+  --color-success-soft: #e3f2e8;
+  --color-warning: #8a5a00;
+  --color-warning-soft: #fbf0d9;
+  --color-danger: #b42318;
+  --color-danger-hover: #961d14;
+  --color-danger-soft: #fdecea;
+  --color-info: #2f5d8a;
+  --color-info-soft: #e5eef7;
+
+  /* Crisis: a warm, serious red that stays readable with white text (5.9:1) */
+  --color-crisis: #b3361f;
+  --color-crisis-hover: #962c19;
+  --color-crisis-soft: #fcebe6;
+
+  /* Mood scale 1–5 (non-judgemental) */
+  --mood-1: #6f7fa8;
+  --mood-2: #8aa3c4;
+  --mood-3: #9fb7a2;
+  --mood-4: #e3b85a;
+  --mood-5: #e89355;
+
+  /* Typography */
+  --font-display: 'Fraunces Variable', 'Iowan Old Style', Georgia, serif;
+  --font-body: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --text-xs: 0.8125rem;
+  --text-sm: 0.875rem;
+  --text-md: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.3125rem;
+  --text-2xl: 1.625rem;
+  --text-3xl: 2.125rem;
+  --text-4xl: clamp(2.25rem, 4.5vw + 1rem, 3.5rem);
+  --leading-tight: 1.2;
+  --leading-normal: 1.55;
+  --weight-regular: 400;
+  --weight-medium: 520;
+  --weight-semibold: 620;
+  --weight-bold: 700;
+
+  /* Spacing (4px base) */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+
+  /* Radius */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-xl: 26px;
+  --radius-pill: 999px;
+
+  /* Elevation: soft, tinted with the ink colour rather than pure black */
+  --shadow-sm: 0 1px 2px rgba(29, 43, 42, 0.06), 0 1px 1px rgba(29, 43, 42, 0.04);
+  --shadow-md: 0 4px 14px rgba(29, 43, 42, 0.08), 0 1px 3px rgba(29, 43, 42, 0.05);
+  --shadow-lg: 0 18px 40px rgba(29, 43, 42, 0.14), 0 4px 10px rgba(29, 43, 42, 0.06);
+
+  /* Focus */
+  --focus-ring: 0 0 0 3px var(--color-bg), 0 0 0 5px var(--color-primary);
+
+  /* Layout */
+  --container: 1180px;
+  --nav-height: 64px;
+  --bottom-nav-height: 64px;
+  --tap-target: 44px;
+
+  /* Motion */
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --dur-fast: 120ms;
+  --dur: 200ms;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --color-primary: #6cc3b5;
+    --color-primary-hover: #84d0c3;
+    --color-primary-strong: #a3ddd3;
+    --color-primary-soft: #1d3a36;
+    --color-on-primary: #0d2321;
+    --color-accent: #f0957c;
+    --color-accent-soft: #3a2620;
+    --color-highlight: #f2c76e;
+    --color-highlight-soft: #3a311d;
+    --color-sage: #9fc2a9;
+    --color-sage-soft: #1f2e26;
+    --color-bg: #111918;
+    --color-surface: #182322;
+    --color-surface-2: #1f2c2a;
+    --color-surface-3: #273633;
+    --color-border: #2d3d3a;
+    --color-border-strong: #415551;
+    --color-text: #e8eeec;
+    --color-text-muted: #a9b8b4;
+    --color-text-subtle: #8c9b97;
+    --color-success: #6fcf97;
+    --color-success-soft: #18301f;
+    --color-warning: #f2c76e;
+    --color-warning-soft: #33290f;
+    --color-danger: #ff8a7a;
+    --color-danger-hover: #ffa597;
+    --color-danger-soft: #3a1c18;
+    --color-info: #8ab8e6;
+    --color-info-soft: #18283a;
+    --color-crisis: #d4482f;
+    --color-crisis-hover: #e05b42;
+    --color-crisis-soft: #3a1d17;
+    --mood-1: #8798c4;
+    --mood-2: #9db5d6;
+    --mood-3: #a9c4ad;
+    --mood-4: #e9c46a;
+    --mood-5: #f0a46c;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.35);
+    --shadow-lg: 0 18px 40px rgba(0, 0, 0, 0.5);
+  }
+}
+
+/* Explicit theme choice from the profile menu overrides the OS setting. */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --color-primary: #6cc3b5;
+  --color-primary-hover: #84d0c3;
+  --color-primary-strong: #a3ddd3;
+  --color-primary-soft: #1d3a36;
+  --color-on-primary: #0d2321;
+  --color-accent: #f0957c;
+  --color-accent-soft: #3a2620;
+  --color-highlight: #f2c76e;
+  --color-highlight-soft: #3a311d;
+  --color-sage: #9fc2a9;
+  --color-sage-soft: #1f2e26;
+  --color-bg: #111918;
+  --color-surface: #182322;
+  --color-surface-2: #1f2c2a;
+  --color-surface-3: #273633;
+  --color-border: #2d3d3a;
+  --color-border-strong: #415551;
+  --color-text: #e8eeec;
+  --color-text-muted: #a9b8b4;
+  --color-text-subtle: #8c9b97;
+  --color-success: #6fcf97;
+  --color-success-soft: #18301f;
+  --color-warning: #f2c76e;
+  --color-warning-soft: #33290f;
+  --color-danger: #ff8a7a;
+  --color-danger-hover: #ffa597;
+  --color-danger-soft: #3a1c18;
+  --color-info: #8ab8e6;
+  --color-info-soft: #18283a;
+  --color-crisis: #d4482f;
+  --color-crisis-hover: #e05b42;
+  --color-crisis-soft: #3a1d17;
+  --mood-1: #8798c4;
+  --mood-2: #9db5d6;
+  --mood-3: #a9c4ad;
+  --mood-4: #e9c46a;
+  --mood-5: #f0a46c;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 18px 40px rgba(0, 0, 0, 0.5);
+}
