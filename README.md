@@ -84,41 +84,24 @@ e2e/                           Playwright journeys + stub AI server for tests
 
 ### Prerequisites
 
-- Node.js 22+
+- Node.js 22.12+
 - Java 11+ (only for the Firebase emulators)
-- `npx firebase-tools` (no global install needed)
+- Nothing else: the Firebase CLI is installed by `npm install`
 
 ### Option A: run locally with the Firebase emulators (no real project or keys)
 
-This is the quickest way to see everything working. The emulators provide Auth and Firestore locally.
+This is the quickest way to see everything working. The emulators provide Auth and Firestore locally, and their data is wiped when you stop them.
 
 ```bash
-npm run install:all
-
-# Terminal 1: Auth + Firestore emulators
-npx firebase-tools emulators:start --project demo-mindmate --only auth,firestore
-
-# Terminal 2: API
-cd backend
-cp .env.example .env
-# In .env set:
-#   DATA_STORE=firestore
-#   FIREBASE_PROJECT_ID=demo-mindmate
-#   FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099
-#   FIRESTORE_EMULATOR_HOST=127.0.0.1:8080
-#   GEMINI_API_KEY=<your key>      (or leave empty: chat will say the AI isn't configured)
-npm run dev
-
-# Terminal 3: web app
-cd frontend
-cp .env.example .env.local
-# In .env.local uncomment the emulator block (VITE_USE_FIREBASE_EMULATOR=true ...)
-npm run dev
+npm install   # installs backend + frontend and creates backend/.env and frontend/.env.local for the emulators
+npm start     # starts the emulators, the API (port 5000) and the web app together
 ```
 
-Open http://localhost:5173. Vite proxies `/api` to the API on port 5000.
+Open http://localhost:5173 and create an account (any email works). Press Ctrl+C to stop.
 
-Without an AI key everything works except AI replies, which return a clear "AI not configured" message. Crisis replies still work because they never use the AI.
+Without an AI key everything works except AI replies, which return a clear "AI not configured" message. Crisis replies still work because they never use the AI. To turn replies on, paste a free key from https://aistudio.google.com/app/apikey after `GEMINI_API_KEY=` in `backend/.env` and restart.
+
+To run the parts separately: `npm run emulators`, `npm run dev:api` and `npm run dev:web`, each in its own terminal.
 
 ### Option B: run against your real Firebase project
 
