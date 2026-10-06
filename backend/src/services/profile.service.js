@@ -33,8 +33,7 @@ function createProfileService({ repo }) {
         createdAt: now,
         updatedAt: now,
       };
-      await repo.setUser(user.uid, doc, { merge: false });
-      return withDefaults(doc);
+      return withDefaults(await repo.createUserIfMissing(user.uid, doc));
     },
 
     async update(user, patch) {
@@ -68,8 +67,17 @@ function createProfileService({ repo }) {
       return { exportedAt: new Date().toISOString(), profile, moods, activities, plans, chats };
     },
 
-    async deleteAllData(user) {
+    /**
+     * Deletes every record. With keepProfile the name, country and settings
+     * are restored afterwards so the account carries on with a clean slate.
+     */
+    async deleteAllData(user, { keepProfile = false } = {}) {
+      const existing = keepProfile ? await repo.getUser(user.uid) : null;
       await repo.deleteAllUserData(user.uid);
+      if (existing) {
+        const { id, ...doc } = existing;
+        await repo.setUser(user.uid, { ...doc, updatedAt: new Date().toISOString() }, { merge: false });
+      }
     },
   };
 }

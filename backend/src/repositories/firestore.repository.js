@@ -33,6 +33,16 @@ function createFirestoreRepository(db) {
       const snap = await userDoc(uid).get();
       return snap.exists ? snap.data() : null;
     },
+    /** Creates the user document only if it does not exist (race-safe). */
+    async createUserIfMissing(uid, data) {
+      try {
+        await userDoc(uid).create(data);
+        return data;
+      } catch (err) {
+        if (err.code === 6) return (await userDoc(uid).get()).data(); // ALREADY_EXISTS
+        throw err;
+      }
+    },
     async setUser(uid, data, { merge = true } = {}) {
       await userDoc(uid).set(data, { merge });
       return (await userDoc(uid).get()).data();

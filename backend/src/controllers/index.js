@@ -18,7 +18,7 @@ function createControllers(s) {
         return ok(res, data);
       },
       deleteData: async (req, res) => {
-        await s.profile.deleteAllData(req.user);
+        await s.profile.deleteAllData(req.user, { keepProfile: true });
         return ok(res, { deleted: true });
       },
       deleteAccount: async (req, res) => {

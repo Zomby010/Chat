@@ -26,6 +26,10 @@ function createMemoryRepository() {
     async getUser(uid) {
       return clone(users.get(uid)) || null;
     },
+    async createUserIfMissing(uid, data) {
+      if (!users.has(uid)) users.set(uid, { ...data });
+      return clone(users.get(uid));
+    },
     async setUser(uid, data, { merge = true } = {}) {
       const next = merge ? { ...(users.get(uid) || {}), ...data } : { ...data };
       users.set(uid, next);

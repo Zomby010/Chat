@@ -1,0 +1,16 @@
+{
+  "name": "mindmate",
+  "version": "2.0.0",
+  "private": true,
+  "description": "MindMate: mood check-ins, evidence-based wellbeing tools and a safety-first AI companion.",
+  "scripts": {
+    "install:all": "npm --prefix backend install && npm --prefix frontend install && npm --prefix e2e install",
+    "emulators": "firebase emulators:start --project demo-mindmate --only auth,firestore",
+    "dev:api": "npm --prefix backend run dev",
+    "dev:web": "npm --prefix frontend run dev",
+    "test": "npm --prefix backend test && npm --prefix frontend test",
+    "test:emulator": "npm --prefix backend run test:emulator",
+    "test:e2e": "npm --prefix e2e test",
+    "build": "npm --prefix frontend run build"
+  }
+}

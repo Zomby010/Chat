@@ -207,6 +207,20 @@ test('export returns all data and delete removes it', async () => {
   assert.equal((await t.as('u1').get('/api/moods')).body.data.length, 0);
 });
 
+test('deleting all data keeps the account profile and settings', async () => {
+  const t = makeTestApp();
+  await t.as('u1').patch('/api/me', { displayName: 'Amina', region: 'KE', preferences: { shareMoodWithAI: true } });
+  await t.as('u1').post('/api/moods', { score: 2 });
+  const res = await t.as('u1').delete('/api/me/data');
+  assert.equal(res.status, 200);
+  assert.deepEqual(t.deleted, []);
+  assert.equal((await t.as('u1').get('/api/moods')).body.data.length, 0);
+  const me = (await t.as('u1').get('/api/me')).body.data;
+  assert.equal(me.displayName, 'Amina');
+  assert.equal(me.region, 'KE');
+  assert.equal(me.preferences.shareMoodWithAI, true);
+});
+
 test('unknown routes and bad JSON return the standard error envelope', async () => {
   const { request } = makeTestApp();
   const r = await request().get('/api/nope');
