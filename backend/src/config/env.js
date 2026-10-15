@@ -69,7 +69,8 @@ function loadConfig(env = process.env) {
     isProduction: e.NODE_ENV === 'production',
     port: e.PORT,
     corsOrigins: e.CORS_ORIGINS.split(',').map((s) => s.trim()).filter(Boolean),
-    trustProxy: e.TRUST_PROXY,
+    // Vercel (and most hosts) sit behind a proxy; trust it so rate limits see real client IPs.
+    trustProxy: e.TRUST_PROXY || Boolean(env.VERCEL),
     dataStore: e.DATA_STORE || (hasFirebaseCredentials ? 'firestore' : 'memory'),
     firebase: {
       projectId: e.FIREBASE_PROJECT_ID,

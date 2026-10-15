@@ -1,49 +1,16 @@
 'use strict';
 
-const { loadConfig } = require('./config/env');
-const { createLogger } = require('./utils/logger');
-const { createApp } = require('./app');
-const { createAIProvider } = require('./services/ai');
-const { createMemoryRepository } = require('./repositories/memory.repository');
-const { createFirestoreRepository } = require('./repositories/firestore.repository');
-const AppError = require('./utils/AppError');
+const { buildApp } = require('./bootstrap');
 
 function main() {
-  let config;
+  let built;
   try {
-    config = loadConfig();
+    built = buildApp();
   } catch (err) {
     process.stderr.write(`\n${err.message}\n\nSee backend/.env.example for every supported variable.\n\n`);
     process.exit(1);
   }
-  const logger = createLogger(config.logLevel);
-
-  let repo;
-  let verifyToken;
-  let deleteAuthUser;
-  let authStatus = 'firebase';
-
-  if (config.firebase.hasCredentials) {
-    const { getFirebaseServices } = require('./config/firebase');
-    const { auth, db } = getFirebaseServices(config.firebase);
-    verifyToken = (token) => auth.verifyIdToken(token, true); // true = also reject revoked sessions
-    deleteAuthUser = (uid) => auth.deleteUser(uid);
-    repo = config.dataStore === 'firestore' ? createFirestoreRepository(db) : createMemoryRepository();
-    if (config.firebase.usingEmulator) authStatus = 'firebase-emulator';
-  } else {
-    // Without Firebase credentials nobody can sign in. Fail every protected
-    // request with a clear message rather than silently accepting tokens.
-    authStatus = 'not-configured';
-    const notConfigured = () => {
-      throw new AppError(503, 'AUTH_NOT_CONFIGURED', 'Sign-in is not configured on this server. Add Firebase credentials to backend/.env.');
-    };
-    verifyToken = notConfigured;
-    deleteAuthUser = notConfigured;
-    repo = createMemoryRepository();
-  }
-
-  const ai = createAIProvider(config.ai);
-  const app = createApp({ config, repo, ai, verifyToken, deleteAuthUser, logger, status: { auth: authStatus } });
+  const { app, config, logger, repo, ai, authStatus } = built;
 
   const server = app.listen(config.port, () => {
     logger.info('server_started', {

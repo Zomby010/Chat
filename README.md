@@ -250,12 +250,11 @@ GitHub Actions (`.github/workflows/ci.yml`) runs the backend tests, the emulator
 
 ## Deployment
 
-A simple, free-tier-friendly setup:
+**Recommended: one Vercel project.** `vercel.json` builds the web app as static files and runs the Express API as a serverless function at `/api` (`api/index.js` wraps `backend/src/bootstrap.js`). The site and API share one domain, so no CORS setup is needed. The step-by-step guide, covering credentials, environment variables, Firebase authorised domains, Firestore rules and checks, is in [docs/DEPLOY_VERCEL.md](docs/DEPLOY_VERCEL.md).
 
-- **Frontend**: Firebase Hosting, Vercel or Netlify. Build with `npm --prefix frontend run build` (output `frontend/dist`), set the `VITE_*` variables, and add an SPA rewrite to `index.html`.
-- **Backend**: Render, Railway, Fly.io or Cloud Run. Start command `npm start` in `backend/`. Set `NODE_ENV=production`, `DATA_STORE=firestore`, `FIREBASE_SERVICE_ACCOUNT_BASE64`, the AI key, `CORS_ORIGINS=https://your-frontend-domain`, and `TRUST_PROXY=true`.
-- Set `VITE_API_URL` in the frontend to the backend URL, and add the frontend domain to Firebase Auth's authorised domains.
-- Deploy `firestore.rules`.
+In short: import the repo in Vercel with Root Directory `./` and preset "Other". Set the `VITE_FIREBASE_*` variables, `FIREBASE_PROJECT_ID`, `FIREBASE_SERVICE_ACCOUNT_BASE64`, `DATA_STORE=firestore` and `GEMINI_API_KEY`. Add the Vercel domain to Firebase Auth's authorised domains. Deploy `firestore.rules`. If anything is misconfigured, `/api/health` reports what is missing.
+
+Other hosts also work. Run the API with `npm start` in `backend/` (Render, Railway, Fly.io, Cloud Run) and the site from `frontend/dist`. Set `VITE_API_URL` to the API's address, and `CORS_ORIGINS` and `TRUST_PROXY=true` on the API.
 
 ## Known limitations
 

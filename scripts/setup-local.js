@@ -10,6 +10,12 @@ const path = require('path');
 
 const root = path.resolve(__dirname, '..');
 
+// Hosting and CI builds install their own way; never create local emulator settings there.
+if (process.env.VERCEL || process.env.CI) {
+  console.log('Skipping local setup (CI or Vercel build).');
+  process.exit(0);
+}
+
 const BACKEND_ENV = `# Local development against the Firebase emulators (created by npm install).
 DATA_STORE=firestore
 FIREBASE_PROJECT_ID=demo-mindmate

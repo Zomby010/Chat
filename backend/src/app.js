@@ -19,6 +19,16 @@ const { createChatService } = require('./services/chat.service');
 const { createInsightsService } = require('./services/insights.service');
 const { createContentService } = require('./services/content.service');
 
+/** True when the browser's Origin is the host this request was sent to. */
+function isSameOrigin(origin, req) {
+  try {
+    const host = req.headers['x-forwarded-host'] || req.headers.host;
+    return Boolean(host) && new URL(origin).host === String(host).split(',')[0].trim();
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Builds the Express app from its dependencies. Nothing here reads
  * process.env or touches the network, which keeps it fully testable.
@@ -37,16 +47,14 @@ function createApp({ config, repo, ai, verifyToken, deleteAuthUser, logger, stat
   if (config.trustProxy) app.set('trust proxy', 1);
 
   app.use(helmet());
+  const corsOptions = { methods: ['GET', 'POST', 'PATCH', 'DELETE'], allowedHeaders: ['Content-Type', 'Authorization'], maxAge: 600 };
   app.use(
-    cors({
-      origin(origin, cb) {
-        // Allow same-origin / server-to-server requests (no Origin header) and the allow-list.
-        if (!origin || config.corsOrigins.includes(origin)) return cb(null, true);
-        return cb(null, false);
-      },
-      methods: ['GET', 'POST', 'PATCH', 'DELETE'],
-      allowedHeaders: ['Content-Type', 'Authorization'],
-      maxAge: 600,
+    cors((req, cb) => {
+      const origin = req.headers.origin;
+      // Allow requests with no Origin (server-to-server), same-origin requests
+      // (the web app and API served from one domain, as on Vercel), and the allow-list.
+      const allowed = !origin || config.corsOrigins.includes(origin) || isSameOrigin(origin, req);
+      cb(null, { ...corsOptions, origin: allowed });
     })
   );
   app.use(express.json({ limit: '32kb' }));
