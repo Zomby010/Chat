@@ -1,0 +1,38 @@
+.quick-actions { display: grid; gap: var(--space-3); }
+.quick-action {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  color: var(--color-text);
+  text-decoration: none;
+  transition: all var(--dur) var(--ease);
+}
+.quick-action > span:nth-child(2) { display: grid; }
+.quick-action:hover { border-color: var(--color-border-strong); box-shadow: var(--shadow-md); color: var(--color-text); }
+.quick-action:focus-visible { border-radius: var(--radius-lg); }
+.quick-action > svg { color: var(--color-text-muted); }
+
+.daily { display: grid; grid-template-columns: 1.3fr 1fr 1fr; gap: var(--space-5); }
+.daily__encourage-text { font-family: var(--font-display); font-size: var(--text-xl); line-height: 1.35; color: var(--color-primary-strong); }
+.daily__suggestion { display: grid; gap: var(--space-2); justify-items: start; margin-top: var(--space-4); }
+.daily__suggestion .suggestion-link { width: 100%; background: var(--color-surface); }
+.daily__quote blockquote { margin: 0; }
+.daily__quote blockquote p { font-family: var(--font-display); font-size: var(--text-lg); line-height: 1.4; margin-bottom: var(--space-3); }
+.daily__quote cite { font-style: normal; }
+.daily__joke-setup { font-weight: var(--weight-semibold); font-size: var(--text-lg); }
+.daily__joke-punchline { font-size: var(--text-lg); color: var(--color-accent); margin: 0; animation: dialog-in var(--dur) var(--ease); }
+@media (max-width: 1023px) {
+  .daily { grid-template-columns: 1fr 1fr; }
+  .daily__encourage { grid-column: 1 / -1; }
+}
+@media (max-width: 640px) { .daily { grid-template-columns: 1fr; } }
+
+.tile { display: grid; align-content: start; gap: var(--space-3); }
+.tile__head { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); font-weight: var(--weight-semibold); color: var(--color-text-muted); }
+.tile .stat__label { margin-top: 0; }
+.welcome-card h2 { font-size: var(--text-xl); }

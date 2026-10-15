@@ -1,4 +1,31 @@
-"node_modules/" 
-".env" 
-".env" 
-"backend/.env" 
+# Dependencies
+node_modules/
+
+# Environment and secrets (never commit these)
+.env
+.env.*
+!.env.example
+*service-account*.json
+serviceAccount*.json
+
+# Build output
+dist/
+build/
+coverage/
+
+# Firebase emulator / logs
+firebase-debug.log*
+firestore-debug.log*
+ui-debug.log*
+.firebase/
+*.log
+
+# Playwright
+test-results/
+playwright-report/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

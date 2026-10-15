@@ -1,0 +1,82 @@
+{
+  "_meta": {
+    "lastVerified": "2026-10-06",
+    "note": "Numbers verified against the cited sources on the date above. Helplines change; re-verify before any public deployment.",
+    "sources": [
+      "https://findahelpline.com",
+      "https://en.wikipedia.org/wiki/List_of_suicide_crisis_lines",
+      "https://lifeline-international.com/member/kenya/",
+      "https://hapakenya.com/2026/03/09/how-to-contact-emergency-services-in-nairobi-nationwide/",
+      "https://www.nigerianmentalhealth.org/helplines",
+      "https://www.mind.org.uk/information-support/guides-to-support-and-services/seeking-help-for-a-mental-health-problem/mental-health-helplines/",
+      "https://www.samhsa.gov/find-help/988/faqs",
+      "https://www.pib.gov.in/PressReleasePage.aspx?PRID=2118790"
+    ]
+  },
+  "regions": {
+    "KE": {
+      "name": "Kenya",
+      "emergency": { "label": "Emergency services", "phone": "999", "alt": "112" },
+      "resources": [
+        { "id": "ke-redcross", "name": "Kenya Red Cross counselling line", "phone": "1199", "hours": "24/7, toll-free", "description": "Free psychological support and counselling." },
+        { "id": "ke-befrienders", "name": "Befrienders Kenya", "phone": "+254722178177", "display": "+254 722 178 177", "hours": "Mon–Fri 9am–5pm (call, SMS or WhatsApp)", "description": "Emotional support for people in distress or with thoughts of suicide." },
+        { "id": "ke-niskize", "name": "Niskize", "phone": "0900620800", "display": "0900 620 800", "hours": "24/7", "description": "Counselling and emotional support helpline." }
+      ]
+    },
+    "NG": {
+      "name": "Nigeria",
+      "emergency": { "label": "National emergency number", "phone": "112" },
+      "resources": [
+        { "id": "ng-surpin", "name": "SURPIN (Suicide Research & Prevention Initiative)", "phone": "08000787746", "display": "0800 078 7746", "hours": "24/7, toll-free", "description": "Lifeline for depression, anxiety, substance use or thoughts of suicide." },
+        { "id": "ng-mani", "name": "Mentally Aware Nigeria Initiative (MANI)", "phone": "08091116264", "display": "0809 111 6264", "sms": "08091116264", "hours": "24/7", "description": "Free, confidential support over the phone." },
+        { "id": "ng-lagos", "name": "Lagos State suicide hotline", "phone": "08058820777", "display": "0805 882 0777", "hours": "24/7", "description": "Government-run crisis line." }
+      ]
+    },
+    "GB": {
+      "name": "United Kingdom",
+      "emergency": { "label": "Emergency services", "phone": "999" },
+      "resources": [
+        { "id": "gb-samaritans", "name": "Samaritans", "phone": "116123", "display": "116 123", "hours": "24/7, free", "description": "Talk to someone about anything, any time." },
+        { "id": "gb-shout", "name": "Shout", "sms": "85258", "smsBody": "SHOUT", "display": "Text SHOUT to 85258", "hours": "24/7, free", "description": "Text-based crisis support." },
+        { "id": "gb-nhs111", "name": "NHS 111 (mental health option)", "phone": "111", "hours": "24/7", "description": "Urgent mental health help in England. Choose the mental health option." }
+      ]
+    },
+    "US": {
+      "name": "United States",
+      "emergency": { "label": "Emergency services", "phone": "911" },
+      "resources": [
+        { "id": "us-988", "name": "988 Suicide & Crisis Lifeline", "phone": "988", "sms": "988", "hours": "24/7, call or text", "url": "https://988lifeline.org", "description": "Free, confidential support for anyone in distress." },
+        { "id": "us-ctl", "name": "Crisis Text Line", "sms": "741741", "smsBody": "HOME", "display": "Text HOME to 741741", "hours": "24/7", "url": "https://www.crisistextline.org", "description": "Text with a trained crisis counselor." }
+      ]
+    },
+    "CA": {
+      "name": "Canada",
+      "emergency": { "label": "Emergency services", "phone": "911" },
+      "resources": [
+        { "id": "ca-988", "name": "9-8-8 Suicide Crisis Helpline", "phone": "988", "sms": "988", "hours": "24/7, call or text (English/French)", "description": "Support for anyone thinking about suicide or worried about someone." }
+      ]
+    },
+    "AU": {
+      "name": "Australia",
+      "emergency": { "label": "Emergency services", "phone": "000" },
+      "resources": [
+        { "id": "au-lifeline", "name": "Lifeline", "phone": "131114", "display": "13 11 14", "hours": "24/7", "description": "Crisis support and suicide prevention." },
+        { "id": "au-kids", "name": "Kids Helpline (ages 5–25)", "phone": "1800551800", "display": "1800 55 1800", "hours": "24/7", "description": "Counselling for young people." }
+      ]
+    },
+    "IN": {
+      "name": "India",
+      "emergency": { "label": "Emergency services", "phone": "112" },
+      "resources": [
+        { "id": "in-telemanas", "name": "Tele-MANAS", "phone": "14416", "display": "14416 or 1-800-891-4416", "hours": "24/7, toll-free, multiple languages", "description": "Government of India national tele-mental health helpline." }
+      ]
+    },
+    "INTL": {
+      "name": "Other countries",
+      "emergency": { "label": "Your local emergency number", "phone": null },
+      "resources": [
+        { "id": "intl-findahelpline", "name": "Find A Helpline", "url": "https://findahelpline.com", "hours": "Directory", "description": "Free, verified helplines in 130+ countries." }
+      ]
+    }
+  }
+}

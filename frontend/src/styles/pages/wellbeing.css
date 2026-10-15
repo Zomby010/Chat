@@ -1,0 +1,67 @@
+.tool-card { display: grid; gap: var(--space-3); align-content: start; }
+.tool-card h2 { margin-top: var(--space-2); }
+.tool-card p { margin: 0; }
+.tool-card__go { display: inline-flex; align-items: center; gap: 4px; color: var(--color-primary); font-weight: var(--weight-semibold); }
+
+.evidence-note summary { display: flex; align-items: center; gap: var(--space-2); cursor: pointer; font-weight: var(--weight-semibold); list-style: none; }
+.evidence-note summary::-webkit-details-marker { display: none; }
+.evidence-note summary::after { content: '+'; margin-left: auto; font-size: var(--text-xl); color: var(--color-text-muted); }
+.evidence-note[open] summary::after { content: '−'; }
+.evidence-note__body { margin-top: var(--space-4); font-size: var(--text-sm); }
+
+/* ---- Breathing ---- */
+.breath { display: grid; justify-items: center; gap: var(--space-6); padding: var(--space-6) 0; text-align: center; }
+.breath__stage { position: relative; display: grid; place-items: center; width: min(300px, 74vw); aspect-ratio: 1; }
+.breath__halo { position: absolute; inset: 0; border-radius: 50%; background: radial-gradient(circle, color-mix(in srgb, var(--color-sage) 35%, transparent) 0%, transparent 70%); }
+.breath__circle {
+  width: 62%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--color-sage) 60%, #fff) 0%, var(--color-sage) 55%, color-mix(in srgb, var(--color-primary) 60%, var(--color-sage)) 100%);
+  box-shadow: 0 10px 40px color-mix(in srgb, var(--color-sage) 45%, transparent);
+  transform: scale(var(--breath-scale, 0.7));
+  transition-property: transform;
+  transition-timing-function: ease-in-out;
+}
+.breath__label { position: absolute; font-family: var(--font-display); font-size: var(--text-2xl); color: var(--color-text); text-shadow: 0 1px 8px var(--color-surface); }
+.breath__count { position: absolute; bottom: 14%; font-size: var(--text-sm); color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
+.breath__progress { width: min(320px, 80vw); }
+@media (prefers-reduced-motion: reduce) {
+  .breath__circle { transform: scale(0.85) !important; }
+}
+.pattern-options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-3); }
+.pattern-option { display: grid; gap: 4px; padding: var(--space-4); border: 1.5px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); text-align: left; }
+.pattern-option[aria-checked='true'] { border-color: var(--color-primary); background: var(--color-primary-soft); }
+.pattern-option:focus-visible { border-radius: var(--radius-md); }
+@media (max-width: 640px) { .pattern-options { grid-template-columns: 1fr; } }
+
+/* ---- Mindfulness player ---- */
+.player { display: grid; gap: var(--space-5); }
+.player__step { min-height: 140px; display: grid; align-content: center; gap: var(--space-3); padding: var(--space-6); border-radius: var(--radius-lg); background: var(--color-surface-2); text-align: center; }
+.player__step-title { font-family: var(--font-display); font-size: var(--text-2xl); margin: 0; }
+.player__step-text { font-size: var(--text-lg); color: var(--color-text-muted); margin: 0; }
+.player__dots { display: flex; gap: 6px; justify-content: center; }
+.player__dots span { width: 8px; height: 8px; border-radius: 50%; background: var(--color-border-strong); }
+.player__dots span.is-done { background: var(--color-primary); }
+.player__dots span.is-current { background: var(--color-primary); transform: scale(1.35); }
+
+/* ---- Sleep ---- */
+.sleep-nights { display: grid; gap: var(--space-2); }
+.sleep-night { display: grid; grid-template-columns: 90px 1fr 70px; gap: var(--space-3); align-items: center; font-size: var(--text-sm); }
+.sleep-night__bar { height: 12px; border-radius: var(--radius-pill); background: var(--color-info); opacity: 0.8; }
+.tips { display: grid; gap: var(--space-3); }
+.tips li { display: flex; gap: var(--space-3); align-items: flex-start; font-size: var(--text-sm); }
+.tips li svg { flex-shrink: 0; margin-top: 2px; color: var(--color-primary); }
+
+/* ---- Plans ---- */
+.plan-day { margin-bottom: var(--space-5); }
+.plan-day__title { font-size: var(--text-sm); font-weight: var(--weight-semibold); color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: var(--space-2); }
+.plan { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); margin-bottom: var(--space-2); }
+.plan__main { flex: 1; min-width: 160px; }
+.plan.is-done .plan__title { text-decoration: line-through; opacity: 0.6; }
+.plan__rate { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); width: 100%; padding-top: var(--space-2); border-top: 1px dashed var(--color-border); }
+.idea-list { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.prompt-card { font-family: var(--font-display); font-size: var(--text-xl); line-height: 1.35; color: var(--color-primary-strong); }
+
+.mood-options--compact { width: 100%; max-width: 420px; }
+.mood-options--compact .mood-option { padding: var(--space-2) 0; font-size: var(--text-xs); gap: var(--space-1); }
